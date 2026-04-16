@@ -9,5 +9,6 @@
   "dependencies": [],
   "iot_class": "cloud_polling",
   "integration_type": "hub",
-  "license": "MIT"
+  "license": "MIT",
+  "homeassistant": "2023.1.0"
 }
