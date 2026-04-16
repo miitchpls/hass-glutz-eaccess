@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connetti a Glutz eAccess",
+        "description": "Inserisci l'URL della tua istanza Glutz eAccess e le tue credenziali.",
+        "data": {
+          "host": "URL host",
+          "username": "Nome utente",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi al server Glutz. Verifica l'URL host e riprova.",
+      "invalid_auth": "Credenziali non valide. Verifica nome utente e password."
+    },
+    "abort": {
+      "already_configured": "Questa istanza Glutz è già configurata."
+    }
+  }
+}
