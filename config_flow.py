@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
@@ -21,7 +22,7 @@ STEP_USER_SCHEMA = vol.Schema(
 class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
         errors = {}
 
         if user_input is not None:

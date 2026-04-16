@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import GlutzAPI, GlutzConnectionError
@@ -38,7 +40,7 @@ class GlutzLock(LockEntity):
     _attr_has_entity_name = True
     _attr_assumed_state = True
 
-    def __init__(self, api: GlutzAPI, access_point: dict) -> None:
+    def __init__(self, api: GlutzAPI, access_point: dict[str, Any]) -> None:
         self._api = api
         self._access_point_id: str = access_point["accessPointId"]
         location: list[str] = access_point.get("location", [])
@@ -47,6 +49,14 @@ class GlutzLock(LockEntity):
         self._attr_is_locked = True
         self._attr_available = True
         self._relock_task: asyncio.Task | None = None
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._access_point_id)},
+            name=self._attr_name,
+            manufacturer="Glutz",
+        )
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the door by calling the Glutz API, then revert state after UNLOCK_DURATION."""
