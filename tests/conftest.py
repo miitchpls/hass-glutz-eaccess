@@ -61,6 +61,12 @@ class _ConfigFlow:
 ha_ce.ConfigEntry = _ConfigEntry
 ha_ce.ConfigFlow = _ConfigFlow
 
+# homeassistant.components.diagnostics
+ha_diagnostics = _stub_module("homeassistant.components.diagnostics")
+def _async_redact_data(data: dict, to_redact: set) -> dict:
+    return {k: "**REDACTED**" if k in to_redact else v for k, v in data.items()}
+ha_diagnostics.async_redact_data = _async_redact_data
+
 # homeassistant.components.lock
 ha_components = _stub_module("homeassistant.components")
 ha_lock = _stub_module("homeassistant.components.lock")
@@ -125,6 +131,7 @@ _load_as("glutz_eaccess.const", "const.py")
 _load_as("glutz_eaccess.api", "api.py")
 _load_as("glutz_eaccess.config_flow", "config_flow.py")
 _load_as("glutz_eaccess.lock", "lock.py")
+_load_as("glutz_eaccess.diagnostics", "diagnostics.py")
 
 # Load __init__.py and expose its exports on the package
 _init = _load_as("glutz_eaccess.__init__", "__init__.py")
