@@ -124,11 +124,19 @@ class GlutzAPI:
         result = await self._rpc("eAccess.getAccessPointsRelatedToLoggedInUser", [])
         return result["accessPoints"]
 
-    async def open_access_point(self, access_point_id: str, action: int) -> bool:
-        """Trigger an action on an access point (e.g. open the door)."""
+    async def open_access_point(self, access_point_id: str) -> bool:
+        """Open an access point for 3 seconds (action 2, hardware auto-relock)."""
         result = await self._rpc(
             "eAccess.executeAccessPointAsLoggedInUser",
-            [access_point_id, action],
+            [access_point_id, 2],
+        )
+        return result.get("status") == "success"
+
+    async def close_access_point(self, access_point_id: str) -> bool:
+        """Force-lock an access point using action 16."""
+        result = await self._rpc(
+            "eAccess.executeAccessPointAsLoggedInUser",
+            [access_point_id, 16],
         )
         return result.get("status") == "success"
 

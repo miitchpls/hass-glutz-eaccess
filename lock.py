@@ -41,26 +41,26 @@ class GlutzLock(LockEntity):
     def __init__(self, api: GlutzAPI, access_point: dict) -> None:
         self._api = api
         self._access_point_id: str = access_point["accessPointId"]
-        self._default_action: int = access_point["defaultActions"]
         location: list[str] = access_point.get("location", [])
         self._attr_name = location[-1] if location else f"Door {self._access_point_id}"
         self._attr_unique_id = f"glutz_{self._access_point_id}"
         self._attr_is_locked = True
         self._attr_available = True
+        self._relock_task: asyncio.Task | None = None
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the door by calling the Glutz API, then revert state after UNLOCK_DURATION."""
         try:
-            success = await self._api.open_access_point(
-                self._access_point_id, self._default_action
-            )
+            success = await self._api.open_access_point(self._access_point_id)
             if not self._attr_available:
                 self._attr_available = True
                 self.async_write_ha_state()
             if success:
                 self._attr_is_locked = False
                 self.async_write_ha_state()
-                self.hass.async_create_task(self._relock())
+                if self._relock_task:
+                    self._relock_task.cancel()
+                self._relock_task = self.hass.async_create_task(self._relock())
             else:
                 _LOGGER.error("Failed to open access point %s", self._access_point_id)
         except GlutzConnectionError as err:
@@ -68,7 +68,27 @@ class GlutzLock(LockEntity):
             self._attr_available = False
             self.async_write_ha_state()
 
+    async def async_lock(self, **kwargs) -> None:
+        """Force-lock the door via the API and cancel any pending auto-relock."""
+        try:
+            success = await self._api.close_access_point(self._access_point_id)
+            if not self._attr_available:
+                self._attr_available = True
+            if success:
+                if self._relock_task:
+                    self._relock_task.cancel()
+                    self._relock_task = None
+                self._attr_is_locked = True
+            else:
+                _LOGGER.error("Failed to lock access point %s", self._access_point_id)
+        except GlutzConnectionError as err:
+            _LOGGER.error("Error locking access point %s: %s", self._access_point_id, err)
+            self._attr_available = False
+        finally:
+            self.async_write_ha_state()
+
     async def _relock(self) -> None:
         await asyncio.sleep(UNLOCK_DURATION)
+        self._relock_task = None
         self._attr_is_locked = True
         self.async_write_ha_state()
