@@ -16,6 +16,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         cert_pem=entry.data.get(CONF_CERT_PEM),
+        language=hass.config.language,
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = api
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -86,14 +86,14 @@ async def resolve_instance_host(cloud_host: str, system_path: str) -> str:
 class GlutzAPI:
     """Client for the Glutz eAccess JSON-RPC API."""
 
-    def __init__(self, host: str, username: str, password: str, cert_pem: str | None = None) -> None:
+    def __init__(self, host: str, username: str, password: str, cert_pem: str | None = None, language: str = "en") -> None:
         self._url = f"https://{host}/rpc/"
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self._headers = {
             "Content-Type": "application/json",
             "Authorization": f"Basic {token}",
             "Accept": "*/*",
-            "Accept-Language": "it",
+            "Accept-Language": language,
             "User-Agent": "eAccess/76 CFNetwork/3826.500.131 Darwin/24.5.0",
         }
         self._connector = aiohttp.TCPConnector(ssl=_build_ssl_context(cert_pem))
