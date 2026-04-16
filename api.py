@@ -87,7 +87,7 @@ class GlutzAPI:
     """Client for the Glutz eAccess JSON-RPC API."""
 
     def __init__(self, host: str, username: str, password: str, cert_pem: str | None = None, language: str = "en") -> None:
-        self._url = f"https://{host}/rpc/"
+        self._url = f"{host}/rpc/"
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self._headers = {
             "Content-Type": "application/json",

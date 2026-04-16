@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
@@ -23,8 +25,10 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            parsed = urlparse(user_input[CONF_HOST])
+            hostname = parsed.hostname or user_input[CONF_HOST]
             try:
-                cert_pem = await fetch_server_cert_pem(user_input[CONF_HOST])
+                cert_pem = await fetch_server_cert_pem(hostname)
             except GlutzConnectionError:
                 errors["base"] = "cannot_connect"
                 cert_pem = None
