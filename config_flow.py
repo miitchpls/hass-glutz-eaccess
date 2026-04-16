@@ -26,6 +26,13 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            for entry in self._async_current_entries():
+                if (
+                    entry.data.get(CONF_HOST) == user_input[CONF_HOST]
+                    and entry.data.get(CONF_USERNAME) == user_input[CONF_USERNAME]
+                ):
+                    return self.async_abort(reason="already_configured")
+
             parsed = urlparse(user_input[CONF_HOST])
             hostname = parsed.hostname or user_input[CONF_HOST]
             try:

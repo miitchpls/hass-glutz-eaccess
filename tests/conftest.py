@@ -52,6 +52,12 @@ class _ConfigFlow:
     def async_create_entry(self, *, title, data):
         return {"type": "create_entry", "title": title, "data": data}
 
+    def async_abort(self, *, reason):
+        return {"type": "abort", "reason": reason}
+
+    def _async_current_entries(self):
+        return []
+
 ha_ce.ConfigEntry = _ConfigEntry
 ha_ce.ConfigFlow = _ConfigFlow
 

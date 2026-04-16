@@ -85,6 +85,32 @@ class TestAsyncStepUser:
 
         mock_api.close.assert_awaited_once()
 
+    async def test_aborts_when_same_host_and_username_already_configured(self):
+        flow = _make_flow()
+        existing = MagicMock()
+        existing.data = {"host": USER_INPUT["host"], "username": USER_INPUT["username"]}
+        flow._async_current_entries = MagicMock(return_value=[existing])
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        result = await flow.async_step_user(USER_INPUT)
+
+        flow.async_abort.assert_called_once_with(reason="already_configured")
+        assert result == {"type": "abort"}
+
+    async def test_allows_same_host_different_username(self):
+        flow = _make_flow()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(return_value=[])
+        existing = MagicMock()
+        existing.data = {"host": USER_INPUT["host"], "username": "other_user"}
+        flow._async_current_entries = MagicMock(return_value=[existing])
+
+        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT"), \
+             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_user(USER_INPUT)
+
+        flow.async_create_entry.assert_called_once()
+
     async def test_hostname_extracted_from_full_url(self):
         flow = _make_flow()
         mock_api = AsyncMock()
