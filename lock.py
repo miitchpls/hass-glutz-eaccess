@@ -46,6 +46,7 @@ class GlutzLock(LockEntity):
         self._attr_name = location[-1] if location else f"Door {self._access_point_id}"
         self._attr_unique_id = f"glutz_{self._access_point_id}"
         self._attr_is_locked = True
+        self._attr_available = True
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the door by calling the Glutz API, then revert state after UNLOCK_DURATION."""
@@ -53,6 +54,9 @@ class GlutzLock(LockEntity):
             success = await self._api.open_access_point(
                 self._access_point_id, self._default_action
             )
+            if not self._attr_available:
+                self._attr_available = True
+                self.async_write_ha_state()
             if success:
                 self._attr_is_locked = False
                 self.async_write_ha_state()
@@ -61,6 +65,8 @@ class GlutzLock(LockEntity):
                 _LOGGER.error("Failed to open access point %s", self._access_point_id)
         except GlutzConnectionError as err:
             _LOGGER.error("Error opening access point %s: %s", self._access_point_id, err)
+            self._attr_available = False
+            self.async_write_ha_state()
 
     async def _relock(self) -> None:
         await asyncio.sleep(UNLOCK_DURATION)
