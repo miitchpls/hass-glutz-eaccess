@@ -5,7 +5,7 @@ import base64
 import hashlib
 import logging
 import ssl
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 
@@ -56,6 +56,47 @@ def _build_ssl_context(cert_pem: str | None) -> aiohttp.Fingerprint | bool:
     return aiohttp.Fingerprint(hashlib.sha256(der).digest())
 
 
+def parse_invitation(url: str) -> dict[str, str]:
+    """Parse a Glutz eAccess invitation URL into its components.
+
+    Accepts both the web and mobile deep-link formats:
+        https://eaccess.ac.glutz.com/invite///cloud.eaccess.glutz.com/building-name
+            ?systemid=XXXX&email=user%40example.com&token=XXXXX
+        eaccessmobile://cloud.eaccess.glutz.com/building-name
+            ?systemid=XXXX&email=user%40example.com&token=XXXXX
+    """
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    try:
+        email = query["email"][0]
+        token = query["token"][0]
+    except (KeyError, IndexError) as err:
+        raise ValueError("Missing email or token") from err
+
+    if parsed.scheme == "eaccessmobile":
+        cloud_host = parsed.netloc
+        system_path = parsed.path.lstrip("/")
+    else:
+        prefix = "/invite/"
+        if not parsed.path.startswith(prefix):
+            raise ValueError("Missing /invite/ prefix")
+        remainder = parsed.path[len(prefix):].lstrip("/")
+        parts = remainder.split("/", 1)
+        if len(parts) != 2:
+            raise ValueError("Missing cloud host or system path")
+        cloud_host, system_path = parts
+
+    if not cloud_host or not system_path:
+        raise ValueError("Missing cloud host or system path")
+
+    return {
+        "cloud_host": cloud_host,
+        "system_path": system_path,
+        "email": email,
+        "token": token,
+    }
+
+
 async def resolve_instance_host(cloud_host: str, system_path: str) -> str:
     """Resolve the actual Glutz instance hostname from the cloud host.
 
@@ -81,6 +122,23 @@ async def resolve_instance_host(cloud_host: str, system_path: str) -> str:
         raise GlutzConnectionError(f"Could not resolve instance host from {url}: {err}") from err
 
     return cloud_host
+
+
+async def set_new_password(host: str, token: str, password: str, cert_pem: str | None) -> None:
+    url = f"https://{host}/api/unauthorized/setnewpassword"
+    connector = aiohttp.TCPConnector(ssl=_build_ssl_context(cert_pem))
+    try:
+        async with aiohttp.ClientSession(connector=connector) as session:
+            async with session.post(
+                url,
+                json={"token": token, "password": password},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 401:
+                    raise GlutzAuthError("Invalid or expired invitation token")
+                resp.raise_for_status()
+    except aiohttp.ClientError as err:
+        raise GlutzConnectionError(f"Could not set new password at {url}: {err}") from err
 
 
 class GlutzAPI:

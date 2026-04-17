@@ -3,17 +3,42 @@
     "step": {
       "user": {
         "title": "Connect to Glutz eAccess",
+        "menu_options": {
+          "credentials": "Sign in with credentials",
+          "invitation": "Use an invitation link"
+        }
+      },
+      "credentials": {
+        "title": "Sign in with credentials",
         "description": "Enter the URL of your Glutz eAccess instance and your credentials.",
         "data": {
-          "host": "Host URL",
-          "username": "Username",
+          "host": "Server name or URL",
+          "username": "Username or email",
+          "password": "Password"
+        }
+      },
+      "invitation": {
+        "title": "Use an invitation link",
+        "description": "Paste the invitation link you received by email.",
+        "data": {
+          "invite_url": "Invitation link"
+        }
+      },
+      "invitation_confirm": {
+        "title": "Set your password",
+        "description": "Review the host and email, then choose a password with at least 8 characters including uppercase, lowercase, a digit and a special character.",
+        "data": {
+          "host": "Server name or URL",
+          "username": "Username or email",
           "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Unable to connect to the Glutz server. Check the host URL and try again.",
-      "invalid_auth": "Invalid credentials. Check your username and password."
+      "invalid_auth": "Invalid credentials. Check your username and password.",
+      "invalid_invitation": "The invitation link is not valid. Make sure you pasted the full URL from the email.",
+      "invalid_password": "Password must be at least 8 characters and include uppercase, lowercase, a digit and a special character."
     },
     "abort": {
       "already_configured": "This Glutz instance is already configured."

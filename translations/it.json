@@ -3,17 +3,42 @@
     "step": {
       "user": {
         "title": "Connetti a Glutz eAccess",
+        "menu_options": {
+          "credentials": "Accedi con credenziali",
+          "invitation": "Usa un link di invito"
+        }
+      },
+      "credentials": {
+        "title": "Accedi con credenziali",
         "description": "Inserisci l'URL della tua istanza Glutz eAccess e le tue credenziali.",
         "data": {
-          "host": "URL host",
-          "username": "Nome utente",
+          "host": "Nome server o URL",
+          "username": "Nome utente o email",
+          "password": "Password"
+        }
+      },
+      "invitation": {
+        "title": "Usa un link di invito",
+        "description": "Incolla il link di invito che hai ricevuto via email.",
+        "data": {
+          "invite_url": "Link di invito"
+        }
+      },
+      "invitation_confirm": {
+        "title": "Imposta la password",
+        "description": "Controlla host ed email, quindi scegli una password di almeno 8 caratteri con maiuscole, minuscole, un numero e un carattere speciale.",
+        "data": {
+          "host": "Nome server o URL",
+          "username": "Nome utente o email",
           "password": "Password"
         }
       }
     },
     "error": {
       "cannot_connect": "Impossibile connettersi al server Glutz. Verifica l'URL host e riprova.",
-      "invalid_auth": "Credenziali non valide. Verifica nome utente e password."
+      "invalid_auth": "Credenziali non valide. Verifica nome utente e password.",
+      "invalid_invitation": "Il link di invito non è valido. Assicurati di aver incollato l'URL completo dall'email.",
+      "invalid_password": "La password deve avere almeno 8 caratteri e includere maiuscole, minuscole, un numero e un carattere speciale."
     },
     "abort": {
       "already_configured": "Questa istanza Glutz è già configurata."

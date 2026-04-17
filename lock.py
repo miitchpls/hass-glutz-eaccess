@@ -15,6 +15,8 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Duration in seconds to show the lock as unlocked before reverting to locked.
+# Matches the physical door's automatic re-lock time.
 UNLOCK_DURATION = 3
 
 

@@ -3,17 +3,42 @@
     "step": {
       "user": {
         "title": "Mit Glutz eAccess verbinden",
+        "menu_options": {
+          "credentials": "Mit Zugangsdaten anmelden",
+          "invitation": "Einladungslink verwenden"
+        }
+      },
+      "credentials": {
+        "title": "Mit Zugangsdaten anmelden",
         "description": "Gib die URL deiner Glutz eAccess-Instanz und deine Zugangsdaten ein.",
         "data": {
-          "host": "Host-URL",
-          "username": "Benutzername",
+          "host": "Servername oder URL",
+          "username": "Benutzername oder E-Mail",
+          "password": "Passwort"
+        }
+      },
+      "invitation": {
+        "title": "Einladungslink verwenden",
+        "description": "Füge den Einladungslink ein, den du per E-Mail erhalten hast.",
+        "data": {
+          "invite_url": "Einladungslink"
+        }
+      },
+      "invitation_confirm": {
+        "title": "Passwort festlegen",
+        "description": "Überprüfe Host und E-Mail und wähle dann ein Passwort mit mindestens 8 Zeichen, darunter Groß- und Kleinbuchstaben, eine Ziffer und ein Sonderzeichen.",
+        "data": {
+          "host": "Servername oder URL",
+          "username": "Benutzername oder E-Mail",
           "password": "Passwort"
         }
       }
     },
     "error": {
       "cannot_connect": "Verbindung zum Glutz-Server fehlgeschlagen. Überprüfe die Host-URL und versuche es erneut.",
-      "invalid_auth": "Ungültige Zugangsdaten. Überprüfe Benutzername und Passwort."
+      "invalid_auth": "Ungültige Zugangsdaten. Überprüfe Benutzername und Passwort.",
+      "invalid_invitation": "Der Einladungslink ist ungültig. Stelle sicher, dass du die vollständige URL aus der E-Mail eingefügt hast.",
+      "invalid_password": "Das Passwort muss mindestens 8 Zeichen lang sein und Groß- und Kleinbuchstaben, eine Ziffer und ein Sonderzeichen enthalten."
     },
     "abort": {
       "already_configured": "Diese Glutz-Instanz ist bereits konfiguriert."
