@@ -5,17 +5,17 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platfor
 from homeassistant.core import HomeAssistant
 
 from .api import GlutzAPI
-from .const import CONF_CERT_PEM, DOMAIN
+from .const import DOMAIN
 
 PLATFORMS = [Platform.LOCK]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api = GlutzAPI(
+        hass,
         entry.data[CONF_HOST],
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
-        cert_pem=entry.data.get(CONF_CERT_PEM),
         language=hass.config.language,
     )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = api
@@ -26,6 +26,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        api: GlutzAPI = hass.data[DOMAIN].pop(entry.entry_id)
-        await api.close()
+        hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok

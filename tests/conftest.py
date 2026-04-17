@@ -88,6 +88,12 @@ ha_helpers = _stub_module("homeassistant.helpers")
 ha_ep = _stub_module("homeassistant.helpers.entity_platform")
 ha_ep.AddEntitiesCallback = object
 
+# homeassistant.helpers.aiohttp_client
+ha_aiohttp = _stub_module("homeassistant.helpers.aiohttp_client")
+def _async_get_clientsession(hass):
+    raise RuntimeError("async_get_clientsession must be patched in tests")
+ha_aiohttp.async_get_clientsession = _async_get_clientsession
+
 # homeassistant.helpers.entity
 ha_entity = _stub_module("homeassistant.helpers.entity")
 class _DeviceInfo(dict):
@@ -164,5 +170,4 @@ def mock_api():
     api.open_access_point = AsyncMock(return_value=True)
     api.close_access_point = AsyncMock(return_value=True)
     api.get_access_points = AsyncMock(return_value=list(SAMPLE_ACCESS_POINTS))
-    api.close = AsyncMock()
     return api

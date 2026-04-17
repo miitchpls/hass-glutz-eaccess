@@ -11,7 +11,6 @@ ENTRY_DATA = {
     "host": "https://example.com",
     "username": "user",
     "password": "secret",
-    "cert_pem": None,
 }
 
 
@@ -52,10 +51,10 @@ class TestAsyncSetupEntry:
             await async_setup_entry(hass, entry)
 
         mock_cls.assert_called_once_with(
+            hass,
             "https://example.com",
             "user",
             "secret",
-            cert_pem=None,
             language="en",
         )
 
@@ -71,7 +70,7 @@ class TestAsyncSetupEntry:
 
 
 class TestAsyncUnloadEntry:
-    async def test_closes_api_on_unload(self):
+    async def test_removes_api_from_hass_data(self):
         hass = _make_hass()
         entry = _make_entry()
         mock_api = AsyncMock()
@@ -80,19 +79,9 @@ class TestAsyncUnloadEntry:
         result = await async_unload_entry(hass, entry)
 
         assert result is True
-        mock_api.close.assert_awaited_once()
-
-    async def test_removes_api_from_hass_data(self):
-        hass = _make_hass()
-        entry = _make_entry()
-        mock_api = AsyncMock()
-        hass.data[DOMAIN] = {ENTRY_ID: mock_api}
-
-        await async_unload_entry(hass, entry)
-
         assert ENTRY_ID not in hass.data[DOMAIN]
 
-    async def test_does_not_close_api_if_unload_fails(self):
+    async def test_keeps_api_when_unload_fails(self):
         hass = _make_hass()
         hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
         entry = _make_entry()
@@ -102,4 +91,4 @@ class TestAsyncUnloadEntry:
         result = await async_unload_entry(hass, entry)
 
         assert result is False
-        mock_api.close.assert_not_awaited()
+        assert hass.data[DOMAIN][ENTRY_ID] is mock_api

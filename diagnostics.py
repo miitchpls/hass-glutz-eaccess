@@ -7,9 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_CERT_PEM
-
-_TO_REDACT = {CONF_PASSWORD, CONF_CERT_PEM}
+_TO_REDACT = {CONF_PASSWORD}
 
 
 async def async_get_config_entry_diagnostics(

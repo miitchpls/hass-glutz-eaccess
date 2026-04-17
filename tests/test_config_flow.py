@@ -19,6 +19,7 @@ INVITE_URL = (
 
 def _make_flow() -> GlutzConfigFlow:
     flow = GlutzConfigFlow()
+    flow.hass = MagicMock()
     flow.async_show_form = MagicMock(return_value={"type": "form"})
     flow.async_show_menu = MagicMock(return_value={"type": "menu"})
     flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
@@ -77,32 +78,19 @@ class TestAsyncStepCredentials:
         mock_api = AsyncMock()
         mock_api.get_access_points = AsyncMock(return_value=[])
 
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT_PEM"), \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
             await flow.async_step_credentials(USER_INPUT)
 
         flow.async_create_entry.assert_called_once()
         call_kwargs = flow.async_create_entry.call_args[1]
-        assert call_kwargs["data"]["host"] == "https://example.com"
-        assert call_kwargs["data"]["cert_pem"] == "CERT_PEM"
-
-    async def test_cert_fetch_failure_sets_cannot_connect(self):
-        flow = _make_flow()
-
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", side_effect=GlutzConnectionError):
-            await flow.async_step_credentials(USER_INPUT)
-
-        flow.async_show_form.assert_called_once()
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
+        assert call_kwargs["data"] == USER_INPUT
 
     async def test_auth_error_sets_invalid_auth(self):
         flow = _make_flow()
         mock_api = AsyncMock()
         mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError)
 
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT_PEM"), \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
             await flow.async_step_credentials(USER_INPUT)
 
         errors = flow.async_show_form.call_args[1]["errors"]
@@ -113,23 +101,11 @@ class TestAsyncStepCredentials:
         mock_api = AsyncMock()
         mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError)
 
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT_PEM"), \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
             await flow.async_step_credentials(USER_INPUT)
 
         errors = flow.async_show_form.call_args[1]["errors"]
         assert errors["base"] == "cannot_connect"
-
-    async def test_api_close_always_called(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError)
-
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT_PEM"), \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        mock_api.close.assert_awaited_once()
 
     async def test_aborts_when_same_host_and_username_already_configured(self):
         flow = _make_flow()
@@ -151,22 +127,10 @@ class TestAsyncStepCredentials:
         existing.data = {"host": USER_INPUT["host"], "username": "other_user"}
         flow._async_current_entries = MagicMock(return_value=[existing])
 
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT"), \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
             await flow.async_step_credentials(USER_INPUT)
 
         flow.async_create_entry.assert_called_once()
-
-    async def test_hostname_extracted_from_full_url(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-
-        with patch("glutz_eaccess.config_flow.fetch_server_cert_pem", return_value="CERT") as mock_cert, \
-             patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials({**USER_INPUT, "host": "https://myhost.example.com"})
-
-        mock_cert.assert_awaited_once_with("myhost.example.com")
 
 
 class TestAsyncStepInvitation:
@@ -192,34 +156,17 @@ class TestAsyncStepInvitation:
         errors = flow.async_show_form.call_args[1]["errors"]
         assert errors["base"] == "cannot_connect"
 
-    async def test_cert_failure_sets_cannot_connect(self):
-        flow = _make_flow()
-        with patch(
-            "glutz_eaccess.config_flow.resolve_instance_host",
-            return_value="instance.example.com",
-        ), patch(
-            "glutz_eaccess.config_flow.fetch_server_cert_pem",
-            side_effect=GlutzConnectionError,
-        ):
-            await flow.async_step_invitation({"invite_url": INVITE_URL})
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-
     async def test_success_advances_to_confirm(self):
         flow = _make_flow()
         with patch(
             "glutz_eaccess.config_flow.resolve_instance_host",
             return_value="instance.example.com",
-        ), patch(
-            "glutz_eaccess.config_flow.fetch_server_cert_pem",
-            return_value="CERT",
         ):
             await flow.async_step_invitation({"invite_url": INVITE_URL})
         assert flow._invitation == {
             "host": "instance.example.com",
             "email": "user@example.com",
             "token": "TOK123",
-            "cert_pem": "CERT",
         }
         assert flow.async_show_form.call_args[1]["step_id"] == "invitation_confirm"
 
@@ -231,7 +178,6 @@ class TestAsyncStepInvitationConfirm:
             "host": "instance.example.com",
             "email": "user@example.com",
             "token": "TOK123",
-            "cert_pem": "CERT",
         }
         return flow
 
@@ -261,14 +207,13 @@ class TestAsyncStepInvitationConfirm:
         ) as mock_setpw:
             await flow.async_step_invitation_confirm(self._submit())
         mock_setpw.assert_awaited_once_with(
-            "instance.example.com", "TOK123", "Secure1!", "CERT"
+            flow.hass, "instance.example.com", "TOK123", "Secure1!"
         )
         call_kwargs = flow.async_create_entry.call_args[1]
         assert call_kwargs["data"] == {
             "host": "https://instance.example.com",
             "username": "user@example.com",
             "password": "Secure1!",
-            "cert_pem": "CERT",
         }
 
     async def test_auth_error_sets_invalid_auth(self):

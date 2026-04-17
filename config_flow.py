@@ -11,12 +11,11 @@ from .api import (
     GlutzAPI,
     GlutzAuthError,
     GlutzConnectionError,
-    fetch_server_cert_pem,
     parse_invitation,
     resolve_instance_host,
     set_new_password,
 )
-from .const import CONF_CERT_PEM, DOMAIN
+from .const import DOMAIN
 
 
 def _is_valid_password(pwd: str) -> bool:
@@ -38,6 +37,7 @@ STEP_CREDENTIALS_SCHEMA = vol.Schema(
 )
 
 STEP_INVITATION_SCHEMA = vol.Schema({vol.Required("invite_url"): str})
+
 
 def _invitation_confirm_schema(host: str, email: str) -> vol.Schema:
     return vol.Schema(
@@ -71,33 +71,19 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ):
                     return self.async_abort(reason="already_configured")
 
-            parsed = urlparse(user_input[CONF_HOST])
-            hostname = parsed.hostname or user_input[CONF_HOST]
+            api = GlutzAPI(
+                self.hass,
+                user_input[CONF_HOST],
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+            )
             try:
-                cert_pem = await fetch_server_cert_pem(hostname)
+                await api.get_access_points()
+                return self.async_create_entry(title="Glutz eAccess", data=user_input)
+            except GlutzAuthError:
+                errors["base"] = "invalid_auth"
             except GlutzConnectionError:
                 errors["base"] = "cannot_connect"
-                cert_pem = None
-
-            if not errors:
-                api = GlutzAPI(
-                    user_input[CONF_HOST],
-                    user_input[CONF_USERNAME],
-                    user_input[CONF_PASSWORD],
-                    cert_pem=cert_pem,
-                )
-                try:
-                    await api.get_access_points()
-                    return self.async_create_entry(
-                        title="Glutz eAccess",
-                        data={**user_input, CONF_CERT_PEM: cert_pem},
-                    )
-                except GlutzAuthError:
-                    errors["base"] = "invalid_auth"
-                except GlutzConnectionError:
-                    errors["base"] = "cannot_connect"
-                finally:
-                    await api.close()
 
         return self.async_show_form(
             step_id="credentials", data_schema=STEP_CREDENTIALS_SCHEMA, errors=errors
@@ -115,9 +101,8 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 try:
                     host = await resolve_instance_host(
-                        parsed["cloud_host"], parsed["system_path"]
+                        self.hass, parsed["cloud_host"], parsed["system_path"]
                     )
-                    cert_pem = await fetch_server_cert_pem(host)
                 except GlutzConnectionError:
                     errors["base"] = "cannot_connect"
 
@@ -126,7 +111,6 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "host": host,
                     "email": parsed["email"],
                     "token": parsed["token"],
-                    "cert_pem": cert_pem,
                 }
                 return await self.async_step_invitation_confirm()
 
@@ -160,10 +144,10 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 try:
                     await set_new_password(
+                        self.hass,
                         urlparse(full_host).hostname or full_host,
                         self._invitation["token"],
                         password,
-                        self._invitation["cert_pem"],
                     )
                     return self.async_create_entry(
                         title="Glutz eAccess",
@@ -171,7 +155,6 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_HOST: full_host,
                             CONF_USERNAME: email,
                             CONF_PASSWORD: password,
-                            CONF_CERT_PEM: self._invitation["cert_pem"],
                         },
                     )
                 except GlutzAuthError:
