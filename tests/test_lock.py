@@ -37,17 +37,21 @@ class TestAsyncSetupEntry:
 
 
 class TestGlutzLockInit:
-    def test_name_from_last_location_element(self, mock_api):
+    def test_entity_name_is_none(self, mock_api):
         lock = GlutzLock(mock_api, AP_WITH_LOCATION)
-        assert lock._attr_name == "Main Door"
+        assert lock._attr_name is None
 
-    def test_name_fallback_when_no_location(self, mock_api):
+    def test_device_name_from_last_location_element(self, mock_api):
+        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        assert lock._device_name == "Main Door"
+
+    def test_device_name_fallback_when_no_location(self, mock_api):
         lock = GlutzLock(mock_api, AP_NO_LOCATION)
-        assert lock._attr_name == "Door ap-2"
+        assert lock._device_name == "Door ap-2"
 
-    def test_name_fallback_when_location_missing(self, mock_api):
+    def test_device_name_fallback_when_location_missing(self, mock_api):
         lock = GlutzLock(mock_api, AP_MISSING_LOCATION)
-        assert lock._attr_name == "Door ap-3"
+        assert lock._device_name == "Door ap-3"
 
     def test_unique_id(self, mock_api):
         lock = GlutzLock(mock_api, AP_WITH_LOCATION)

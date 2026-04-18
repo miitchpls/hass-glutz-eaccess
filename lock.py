@@ -42,11 +42,15 @@ class GlutzLock(LockEntity):
     _attr_has_entity_name = True
     _attr_assumed_state = True
 
+    _attr_name = None
+
     def __init__(self, api: GlutzAPI, access_point: dict[str, Any]) -> None:
         self._api = api
         self._access_point_id: str = access_point["accessPointId"]
         location: list[str] = access_point.get("location", [])
-        self._attr_name = location[-1] if location else f"Door {self._access_point_id}"
+        self._device_name = (
+            location[-1] if location else f"Door {self._access_point_id}"
+        )
         self._attr_unique_id = f"glutz_{self._access_point_id}"
         self._attr_is_locked = True
         self._attr_available = True
@@ -56,7 +60,7 @@ class GlutzLock(LockEntity):
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self._access_point_id)},
-            name=self._attr_name,
+            name=self._device_name,
             manufacturer="Glutz",
         )
 
