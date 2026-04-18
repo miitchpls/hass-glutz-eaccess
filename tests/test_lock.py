@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from glutz_eaccess.api import GlutzConnectionError
+from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.const import DOMAIN
 from glutz_eaccess.lock import GlutzLock, async_setup_entry
 
@@ -15,8 +15,14 @@ AP_NO_LOCATION = {"accessPointId": "ap-2", "location": []}
 AP_MISSING_LOCATION = {"accessPointId": "ap-3"}
 
 
-def _make_lock(api, access_point: dict) -> GlutzLock:
-    lock = GlutzLock(api, access_point)
+def _make_entry() -> MagicMock:
+    entry = MagicMock()
+    entry.async_start_reauth = MagicMock()
+    return entry
+
+
+def _make_lock(api, access_point: dict, entry: MagicMock | None = None) -> GlutzLock:
+    lock = GlutzLock(api, entry or _make_entry(), access_point)
     lock.hass = MagicMock()
     lock.hass.async_create_task = lambda coro: asyncio.ensure_future(coro)
     lock.async_write_ha_state = MagicMock()
@@ -41,35 +47,35 @@ class TestAsyncSetupEntry:
 
 class TestGlutzLockInit:
     def test_entity_name_is_none(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         assert lock._attr_name is None
 
     def test_device_name_from_last_location_element(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         assert lock._device_name == "Main Door"
 
     def test_device_name_fallback_when_no_location(self, mock_api):
-        lock = GlutzLock(mock_api, AP_NO_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_NO_LOCATION)
         assert lock._device_name == "Door ap-2"
 
     def test_device_name_fallback_when_location_missing(self, mock_api):
-        lock = GlutzLock(mock_api, AP_MISSING_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_MISSING_LOCATION)
         assert lock._device_name == "Door ap-3"
 
     def test_unique_id(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         assert lock._attr_unique_id == "glutz_ap-1"
 
     def test_initial_state_is_locked(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         assert lock._attr_is_locked is True
 
     def test_initial_availability(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         assert lock._attr_available is True
 
     def test_device_info(self, mock_api):
-        lock = GlutzLock(mock_api, AP_WITH_LOCATION)
+        lock = GlutzLock(mock_api, _make_entry(), AP_WITH_LOCATION)
         info = lock.device_info
         assert ("glutz_eaccess", "ap-1") in info["identifiers"]
         assert info["name"] == "Main Door"
@@ -185,3 +191,35 @@ class TestRelock:
                 await task
 
         assert lock._relock_task is None
+
+
+class TestAuthErrorTriggersReauth:
+    async def test_unlock_auth_error_starts_reauth(self, mock_api):
+        mock_api.open_access_point = AsyncMock(side_effect=GlutzAuthError)
+        entry = _make_entry()
+        lock = _make_lock(mock_api, AP_WITH_LOCATION, entry=entry)
+
+        with pytest.raises(HomeAssistantError):
+            await lock.async_unlock()
+
+        entry.async_start_reauth.assert_called_once_with(lock.hass)
+
+    async def test_lock_auth_error_starts_reauth(self, mock_api):
+        mock_api.close_access_point = AsyncMock(side_effect=GlutzAuthError)
+        entry = _make_entry()
+        lock = _make_lock(mock_api, AP_WITH_LOCATION, entry=entry)
+
+        with pytest.raises(HomeAssistantError):
+            await lock.async_lock()
+
+        entry.async_start_reauth.assert_called_once_with(lock.hass)
+
+    async def test_unlock_connection_error_does_not_start_reauth(self, mock_api):
+        mock_api.open_access_point = AsyncMock(side_effect=GlutzConnectionError)
+        entry = _make_entry()
+        lock = _make_lock(mock_api, AP_WITH_LOCATION, entry=entry)
+
+        with pytest.raises(HomeAssistantError):
+            await lock.async_unlock()
+
+        entry.async_start_reauth.assert_not_called()

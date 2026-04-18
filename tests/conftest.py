@@ -39,7 +39,13 @@ ha_core.HomeAssistant = object
 ha_exc = _stub_module("homeassistant.exceptions")
 class _HomeAssistantError(Exception):
     pass
+class _ConfigEntryAuthFailed(_HomeAssistantError):
+    pass
+class _ConfigEntryNotReady(_HomeAssistantError):
+    pass
 ha_exc.HomeAssistantError = _HomeAssistantError
+ha_exc.ConfigEntryAuthFailed = _ConfigEntryAuthFailed
+ha_exc.ConfigEntryNotReady = _ConfigEntryNotReady
 
 # homeassistant.config_entries
 ha_ce = _stub_module("homeassistant.config_entries")
@@ -64,6 +70,18 @@ class _ConfigFlow:
 
     def _async_current_entries(self):
         return []
+
+    def _get_reauth_entry(self):
+        return self._reauth_entry
+
+    def async_update_reload_and_abort(self, entry, *, data_updates=None, data=None):
+        return {
+            "type": "abort",
+            "reason": "reauth_successful",
+            "entry": entry,
+            "data_updates": data_updates,
+            "data": data,
+        }
 
 ha_ce.ConfigEntry = _ConfigEntry
 ha_ce.ConfigFlow = _ConfigFlow

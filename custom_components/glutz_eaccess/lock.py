@@ -11,7 +11,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import GlutzAPI, GlutzConnectionError
+from .api import GlutzAPI, GlutzAuthError, GlutzConnectionError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def async_setup_entry(
     """Set up a GlutzLock entity for each access point returned by the API."""
     api: GlutzAPI = hass.data[DOMAIN][entry.entry_id]
     access_points = await api.get_access_points()
-    async_add_entities(GlutzLock(api, ap) for ap in access_points)
+    async_add_entities(GlutzLock(api, entry, ap) for ap in access_points)
 
 
 class GlutzLock(LockEntity):
@@ -45,8 +45,14 @@ class GlutzLock(LockEntity):
 
     _attr_name = None
 
-    def __init__(self, api: GlutzAPI, access_point: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        api: GlutzAPI,
+        entry: ConfigEntry,
+        access_point: dict[str, Any],
+    ) -> None:
         self._api = api
+        self._entry = entry
         self._access_point_id: str = access_point["accessPointId"]
         location: list[str] = access_point.get("location", [])
         self._device_name = (
@@ -69,6 +75,11 @@ class GlutzLock(LockEntity):
         """Unlock the door by calling the Glutz API, then revert state after UNLOCK_DURATION."""
         try:
             success = await self._api.open_access_point(self._access_point_id)
+        except GlutzAuthError as err:
+            self._entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(
+                f"Authentication failed for access point {self._access_point_id}"
+            ) from err
         except GlutzConnectionError as err:
             self._attr_available = False
             self.async_write_ha_state()
@@ -93,6 +104,11 @@ class GlutzLock(LockEntity):
         """Force-lock the door via the API and cancel any pending auto-relock."""
         try:
             success = await self._api.close_access_point(self._access_point_id)
+        except GlutzAuthError as err:
+            self._entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(
+                f"Authentication failed for access point {self._access_point_id}"
+            ) from err
         except GlutzConnectionError as err:
             self._attr_available = False
             self.async_write_ha_state()

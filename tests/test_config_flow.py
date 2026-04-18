@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import voluptuous as vol
+
 from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.config_flow import GlutzConfigFlow, _is_valid_password
 
@@ -293,3 +295,100 @@ class TestAsyncStepInvitationConfirm:
 
         flow.async_abort.assert_called_once_with(reason="already_configured")
         assert result == {"type": "abort"}
+
+
+class TestAsyncStepReauth:
+    def _flow_with_reauth_entry(self) -> GlutzConfigFlow:
+        flow = _make_flow()
+        entry = MagicMock()
+        entry.data = {
+            "host": "https://example.com",
+            "username": "user@example.com",
+            "password": "old_password",
+        }
+        flow._reauth_entry = entry
+        return flow
+
+    async def test_reauth_entrypoint_shows_confirm_form(self):
+        flow = self._flow_with_reauth_entry()
+        await flow.async_step_reauth(flow._reauth_entry.data)
+        flow.async_show_form.assert_called_once()
+        assert flow.async_show_form.call_args[1]["step_id"] == "reauth_confirm"
+
+    async def test_shows_form_when_no_input(self):
+        flow = self._flow_with_reauth_entry()
+        await flow.async_step_reauth_confirm(None)
+        flow.async_show_form.assert_called_once()
+        assert flow.async_show_form.call_args[1]["step_id"] == "reauth_confirm"
+
+    def _submit(
+        self,
+        host: str = "https://example.com",
+        username: str = "user@example.com",
+        password: str = "new_password",
+    ) -> dict:
+        return {"host": host, "username": username, "password": password}
+
+    async def test_success_updates_entry_and_aborts(self):
+        flow = self._flow_with_reauth_entry()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(return_value=[])
+
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            result = await flow.async_step_reauth_confirm(self._submit())
+
+        assert result["type"] == "abort"
+        assert result["reason"] == "reauth_successful"
+        assert result["data_updates"] == {
+            "host": "https://example.com",
+            "username": "user@example.com",
+            "password": "new_password",
+        }
+        assert result["entry"] is flow._reauth_entry
+
+    async def test_invalid_auth_shows_error(self):
+        flow = self._flow_with_reauth_entry()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError)
+
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_reauth_confirm(self._submit(password="wrong"))
+
+        errors = flow.async_show_form.call_args[1]["errors"]
+        assert errors["base"] == "invalid_auth"
+
+    async def test_connection_error_shows_error(self):
+        flow = self._flow_with_reauth_entry()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError)
+
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_reauth_confirm(self._submit())
+
+        errors = flow.async_show_form.call_args[1]["errors"]
+        assert errors["base"] == "cannot_connect"
+
+    async def test_uses_submitted_host_and_username(self):
+        flow = self._flow_with_reauth_entry()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(return_value=[])
+
+        with patch(
+            "glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        ) as mock_cls:
+            await flow.async_step_reauth_confirm(
+                self._submit(host="https://new.example.com", username="new@example.com")
+            )
+
+        args = mock_cls.call_args[0]
+        assert args[1] == "https://new.example.com"
+        assert args[2] == "new@example.com"
+        assert args[3] == "new_password"
+
+    async def test_form_schema_prefills_host_and_username(self):
+        flow = self._flow_with_reauth_entry()
+        await flow.async_step_reauth_confirm(None)
+        schema = flow.async_show_form.call_args[1]["data_schema"]
+        defaults = {str(k): k.default() for k in schema.schema if k.default is not vol.UNDEFINED}
+        assert defaults["host"] == "https://example.com"
+        assert defaults["username"] == "user@example.com"

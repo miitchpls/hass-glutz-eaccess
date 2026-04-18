@@ -32,6 +32,15 @@
           "username": "Username or email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate with Glutz eAccess",
+        "description": "Your stored credentials are no longer valid. Review the server and username, then enter your current password.",
+        "data": {
+          "host": "Server name or URL",
+          "username": "Username or email",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -41,7 +50,8 @@
       "invalid_password": "Password must be at least 8 characters and include uppercase, lowercase, a digit and a special character."
     },
     "abort": {
-      "already_configured": "This Glutz instance is already configured."
+      "already_configured": "This Glutz instance is already configured.",
+      "reauth_successful": "Re-authentication was successful."
     }
   }
 }

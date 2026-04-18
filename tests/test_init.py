@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+
 from glutz_eaccess import async_setup_entry, async_unload_entry
+from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.const import DOMAIN
 
 ENTRY_ID = "test_entry_id"
@@ -67,6 +71,31 @@ class TestAsyncSetupEntry:
             await async_setup_entry(hass, entry)
 
         hass.config_entries.async_forward_entry_setups.assert_awaited_once()
+
+    async def test_raises_auth_failed_on_invalid_credentials(self):
+        hass = _make_hass()
+        entry = _make_entry()
+        mock_api = AsyncMock()
+        mock_api.get_system_name = AsyncMock(side_effect=GlutzAuthError)
+
+        with patch("glutz_eaccess.__init__.GlutzAPI", return_value=mock_api):
+            with pytest.raises(ConfigEntryAuthFailed):
+                await async_setup_entry(hass, entry)
+
+        assert DOMAIN not in hass.data or ENTRY_ID not in hass.data.get(DOMAIN, {})
+        hass.config_entries.async_forward_entry_setups.assert_not_awaited()
+
+    async def test_raises_not_ready_on_connection_error(self):
+        hass = _make_hass()
+        entry = _make_entry()
+        mock_api = AsyncMock()
+        mock_api.get_system_name = AsyncMock(side_effect=GlutzConnectionError("boom"))
+
+        with patch("glutz_eaccess.__init__.GlutzAPI", return_value=mock_api):
+            with pytest.raises(ConfigEntryNotReady):
+                await async_setup_entry(hass, entry)
+
+        hass.config_entries.async_forward_entry_setups.assert_not_awaited()
 
 
 class TestAsyncUnloadEntry:

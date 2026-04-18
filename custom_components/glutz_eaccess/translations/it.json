@@ -32,6 +32,15 @@
           "username": "Nome utente o email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Ri-autenticati con Glutz eAccess",
+        "description": "Le credenziali salvate non sono più valide. Controlla server e nome utente, quindi inserisci la password attuale.",
+        "data": {
+          "host": "Nome server o URL",
+          "username": "Nome utente o email",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -41,7 +50,8 @@
       "invalid_password": "La password deve avere almeno 8 caratteri e includere maiuscole, minuscole, un numero e un carattere speciale."
     },
     "abort": {
-      "already_configured": "Questa istanza Glutz è già configurata."
+      "already_configured": "Questa istanza Glutz è già configurata.",
+      "reauth_successful": "Ri-autenticazione riuscita."
     }
   }
 }

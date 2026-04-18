@@ -3,8 +3,9 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
-from .api import GlutzAPI
+from .api import GlutzAPI, GlutzAuthError, GlutzConnectionError
 from .const import DOMAIN
 
 PLATFORMS = [Platform.LOCK]
@@ -18,6 +19,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_PASSWORD],
         language=hass.config.language,
     )
+    try:
+        await api.get_system_name()
+    except GlutzAuthError as err:
+        raise ConfigEntryAuthFailed("Invalid credentials") from err
+    except GlutzConnectionError as err:
+        raise ConfigEntryNotReady(str(err)) from err
+
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = api
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
