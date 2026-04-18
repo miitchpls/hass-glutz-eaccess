@@ -134,6 +134,13 @@ class GlutzAPI:
         result = await self._rpc("eAccess.getAccessPointsRelatedToLoggedInUser", [])
         return result["accessPoints"]
 
+    async def get_system_name(self) -> str | None:
+        """Return the building/system name, or None if not provided by the API."""
+        result = await self._rpc("eAccess.getSystemInfoOfLoggedInUser", [])
+        if isinstance(result, dict):
+            return result.get("name")
+        return None
+
     async def open_access_point(self, access_point_id: str) -> bool:
         """Open an access point for 3 seconds (action 2, hardware auto-relock)."""
         result = await self._rpc(

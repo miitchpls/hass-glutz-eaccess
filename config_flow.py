@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from urllib.parse import urlparse
 
@@ -16,6 +17,19 @@ from .api import (
     set_new_password,
 )
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
+
+DEFAULT_TITLE = "Glutz eAccess"
+
+
+async def _safe_resolve_title(api: GlutzAPI) -> str:
+    try:
+        name = await api.get_system_name()
+    except (GlutzAuthError, GlutzConnectionError) as err:
+        _LOGGER.warning("Could not fetch system name, using default title: %s", err)
+        return DEFAULT_TITLE
+    return name or DEFAULT_TITLE
 
 
 def _is_valid_password(pwd: str) -> bool:
@@ -79,7 +93,10 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             try:
                 await api.get_access_points()
-                return self.async_create_entry(title="Glutz eAccess", data=user_input)
+                name = await api.get_system_name()
+                return self.async_create_entry(
+                    title=name or DEFAULT_TITLE, data=user_input
+                )
             except GlutzAuthError:
                 errors["base"] = "invalid_auth"
             except GlutzConnectionError:
@@ -149,18 +166,22 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         self._invitation["token"],
                         password,
                     )
+                except GlutzAuthError:
+                    errors["base"] = "invalid_auth"
+                except GlutzConnectionError:
+                    errors["base"] = "cannot_connect"
+
+                if not errors:
+                    api = GlutzAPI(self.hass, full_host, email, password)
+                    title = await _safe_resolve_title(api)
                     return self.async_create_entry(
-                        title="Glutz eAccess",
+                        title=title,
                         data={
                             CONF_HOST: full_host,
                             CONF_USERNAME: email,
                             CONF_PASSWORD: password,
                         },
                     )
-                except GlutzAuthError:
-                    errors["base"] = "invalid_auth"
-                except GlutzConnectionError:
-                    errors["base"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="invitation_confirm",

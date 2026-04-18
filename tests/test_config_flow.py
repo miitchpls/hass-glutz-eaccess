@@ -77,6 +77,7 @@ class TestAsyncStepCredentials:
         flow = _make_flow()
         mock_api = AsyncMock()
         mock_api.get_access_points = AsyncMock(return_value=[])
+        mock_api.get_system_name = AsyncMock(return_value="Palazzo Rossi")
 
         with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
             await flow.async_step_credentials(USER_INPUT)
@@ -84,6 +85,19 @@ class TestAsyncStepCredentials:
         flow.async_create_entry.assert_called_once()
         call_kwargs = flow.async_create_entry.call_args[1]
         assert call_kwargs["data"] == USER_INPUT
+        assert call_kwargs["title"] == "Palazzo Rossi"
+
+    async def test_missing_system_name_falls_back_to_default_title(self):
+        flow = _make_flow()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(return_value=[])
+        mock_api.get_system_name = AsyncMock(return_value=None)
+
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_credentials(USER_INPUT)
+
+        call_kwargs = flow.async_create_entry.call_args[1]
+        assert call_kwargs["title"] == "Glutz eAccess"
 
     async def test_auth_error_sets_invalid_auth(self):
         flow = _make_flow()
@@ -106,6 +120,19 @@ class TestAsyncStepCredentials:
 
         errors = flow.async_show_form.call_args[1]["errors"]
         assert errors["base"] == "cannot_connect"
+
+    async def test_system_name_connection_error_sets_cannot_connect(self):
+        flow = _make_flow()
+        mock_api = AsyncMock()
+        mock_api.get_access_points = AsyncMock(return_value=[])
+        mock_api.get_system_name = AsyncMock(side_effect=GlutzConnectionError)
+
+        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_credentials(USER_INPUT)
+
+        errors = flow.async_show_form.call_args[1]["errors"]
+        assert errors["base"] == "cannot_connect"
+        flow.async_create_entry.assert_not_called()
 
     async def test_aborts_when_same_host_and_username_already_configured(self):
         flow = _make_flow()
@@ -202,19 +229,35 @@ class TestAsyncStepInvitationConfirm:
 
     async def test_success_creates_entry(self):
         flow = self._flow_with_invitation()
+        mock_api = AsyncMock()
+        mock_api.get_system_name = AsyncMock(return_value="Palazzo Rossi")
         with patch(
             "glutz_eaccess.config_flow.set_new_password", new=AsyncMock()
-        ) as mock_setpw:
+        ) as mock_setpw, patch(
+            "glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        ):
             await flow.async_step_invitation_confirm(self._submit())
         mock_setpw.assert_awaited_once_with(
             flow.hass, "instance.example.com", "TOK123", "Secure1!"
         )
         call_kwargs = flow.async_create_entry.call_args[1]
+        assert call_kwargs["title"] == "Palazzo Rossi"
         assert call_kwargs["data"] == {
             "host": "https://instance.example.com",
             "username": "user@example.com",
             "password": "Secure1!",
         }
+
+    async def test_success_falls_back_when_system_name_fails(self):
+        flow = self._flow_with_invitation()
+        mock_api = AsyncMock()
+        mock_api.get_system_name = AsyncMock(side_effect=GlutzConnectionError)
+        with patch(
+            "glutz_eaccess.config_flow.set_new_password", new=AsyncMock()
+        ), patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
+            await flow.async_step_invitation_confirm(self._submit())
+        call_kwargs = flow.async_create_entry.call_args[1]
+        assert call_kwargs["title"] == "Glutz eAccess"
 
     async def test_auth_error_sets_invalid_auth(self):
         flow = self._flow_with_invitation()

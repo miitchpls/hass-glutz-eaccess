@@ -144,6 +144,25 @@ class TestGlutzAPIMethods:
             result = await api.close_access_point("ap-1")
         assert result is False
 
+    async def test_get_system_name_returns_name(self):
+        session = _mock_post_session(
+            200, json_body={"result": {"name": "Palazzo Rossi", "id": "SYS1"}}
+        )
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            result = await api.get_system_name()
+        assert result == "Palazzo Rossi"
+        payload = session.post.call_args[1]["json"]
+        assert payload["method"] == "eAccess.getSystemInfoOfLoggedInUser"
+        assert payload["params"] == []
+
+    async def test_get_system_name_returns_none_when_missing(self):
+        session = _mock_post_session(200, json_body={"result": {"id": "SYS1"}})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            result = await api.get_system_name()
+        assert result is None
+
 
 class TestParseInvitation:
     def test_valid_url(self):
