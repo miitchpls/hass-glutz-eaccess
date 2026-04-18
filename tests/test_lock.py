@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from homeassistant.exceptions import HomeAssistantError
+
 from glutz_eaccess.api import GlutzConnectionError
 from glutz_eaccess.const import DOMAIN
 from glutz_eaccess.lock import GlutzLock, async_setup_entry
@@ -98,7 +101,8 @@ class TestAsyncUnlock:
     async def test_sets_unavailable_on_connection_error(self, mock_api):
         mock_api.open_access_point = AsyncMock(side_effect=GlutzConnectionError)
         lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
+        with pytest.raises(HomeAssistantError):
+            await lock.async_unlock()
         assert lock._attr_available is False
 
     async def test_restores_availability_after_previous_error(self, mock_api):
@@ -108,10 +112,11 @@ class TestAsyncUnlock:
         assert lock._attr_available is True
         lock._relock_task.cancel()
 
-    async def test_no_state_change_when_api_returns_false(self, mock_api):
+    async def test_raises_when_api_returns_false(self, mock_api):
         mock_api.open_access_point = AsyncMock(return_value=False)
         lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
+        with pytest.raises(HomeAssistantError):
+            await lock.async_unlock()
         assert lock._attr_is_locked is True
 
 
@@ -132,7 +137,8 @@ class TestAsyncLock:
     async def test_sets_unavailable_on_connection_error(self, mock_api):
         mock_api.close_access_point = AsyncMock(side_effect=GlutzConnectionError)
         lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_lock()
+        with pytest.raises(HomeAssistantError):
+            await lock.async_lock()
         assert lock._attr_available is False
 
     async def test_restores_availability_after_previous_error(self, mock_api):
@@ -141,17 +147,19 @@ class TestAsyncLock:
         await lock.async_lock()
         assert lock._attr_available is True
 
-    async def test_no_state_change_when_api_returns_false(self, mock_api):
+    async def test_raises_when_api_returns_false(self, mock_api):
         mock_api.close_access_point = AsyncMock(return_value=False)
         lock = _make_lock(mock_api, AP_WITH_LOCATION)
         lock._attr_is_locked = False
-        await lock.async_lock()
+        with pytest.raises(HomeAssistantError):
+            await lock.async_lock()
         assert lock._attr_is_locked is False
 
-    async def test_write_ha_state_always_called(self, mock_api):
+    async def test_write_ha_state_called_on_connection_error(self, mock_api):
         mock_api.close_access_point = AsyncMock(side_effect=GlutzConnectionError)
         lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_lock()
+        with pytest.raises(HomeAssistantError):
+            await lock.async_lock()
         lock.async_write_ha_state.assert_called()
 
 

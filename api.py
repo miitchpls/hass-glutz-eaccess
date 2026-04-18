@@ -122,11 +122,9 @@ class GlutzAPI:
                 resp.raise_for_status()
                 data = await resp.json()
                 if "error" in data:
-                    _LOGGER.warning("RPC %s returned error: %s", method, data["error"])
                     raise GlutzConnectionError(data["error"])
                 return data["result"]
         except aiohttp.ClientError as err:
-            _LOGGER.warning("RPC %s network error: %s", method, err)
             raise GlutzConnectionError(str(err)) from err
 
     async def get_access_points(self) -> list[dict]:

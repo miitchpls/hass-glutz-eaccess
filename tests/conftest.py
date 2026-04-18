@@ -34,6 +34,12 @@ ha_const.Platform = _Platform
 ha_core = _stub_module("homeassistant.core")
 ha_core.HomeAssistant = object
 
+# homeassistant.exceptions
+ha_exc = _stub_module("homeassistant.exceptions")
+class _HomeAssistantError(Exception):
+    pass
+ha_exc.HomeAssistantError = _HomeAssistantError
+
 # homeassistant.config_entries
 ha_ce = _stub_module("homeassistant.config_entries")
 
