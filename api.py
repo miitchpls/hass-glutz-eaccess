@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
+from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
@@ -71,7 +72,7 @@ async def resolve_instance_host(hass: HomeAssistant, cloud_host: str, system_pat
         ) as resp:
             if resp.status in (301, 302, 307, 308):
                 resolved = urlparse(resp.headers.get("Location", "")).hostname
-                if resolved:
+                if isinstance(resolved, str) and resolved:
                     return resolved
     except aiohttp.ClientError as err:
         raise GlutzConnectionError(f"Could not resolve instance host from {url}: {err}") from err
@@ -98,11 +99,18 @@ async def set_new_password(hass: HomeAssistant, host: str, token: str, password:
 class GlutzAPI:
     """Client for the Glutz eAccess JSON-RPC API."""
 
-    def __init__(self, hass: HomeAssistant, host: str, username: str, password: str, language: str = "en") -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        host: str,
+        username: str,
+        password: str,
+        language: str = "en",
+    ) -> None:
         self._hass = hass
         self._url = f"{host}/rpc/"
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
-        self._headers = {
+        self._headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Authorization": f"Basic {token}",
             "Accept": "*/*",
@@ -110,9 +118,14 @@ class GlutzAPI:
             "User-Agent": "eAccess/76 CFNetwork/3826.500.131 Darwin/24.5.0",
         }
 
-    async def _rpc(self, method: str, params: list) -> dict:
+    async def _rpc(self, method: str, params: list[Any]) -> dict[str, Any]:
         """Send a JSON-RPC 2.0 request and return the result payload."""
-        payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
+        payload: dict[str, Any] = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+            "id": 1,
+        }
         session = async_get_clientsession(self._hass)
         try:
             async with session.post(self._url, json=payload, headers=self._headers) as resp:
@@ -120,23 +133,24 @@ class GlutzAPI:
                 if resp.status == 401:
                     raise GlutzAuthError("Invalid credentials")
                 resp.raise_for_status()
-                data = await resp.json()
+                data: dict[str, Any] = await resp.json()
                 if "error" in data:
                     raise GlutzConnectionError(data["error"])
-                return data["result"]
+                return cast(dict[str, Any], data["result"])
         except aiohttp.ClientError as err:
             raise GlutzConnectionError(str(err)) from err
 
-    async def get_access_points(self) -> list[dict]:
+    async def get_access_points(self) -> list[dict[str, Any]]:
         """Return all access points available to the authenticated user."""
         result = await self._rpc("eAccess.getAccessPointsRelatedToLoggedInUser", [])
-        return result["accessPoints"]
+        return cast(list[dict[str, Any]], result["accessPoints"])
 
     async def get_system_name(self) -> str | None:
         """Return the building/system name, or None if not provided by the API."""
         result = await self._rpc("eAccess.getSystemInfoOfLoggedInUser", [])
         if isinstance(result, dict):
-            return result.get("name")
+            name = result.get("name")
+            return name if isinstance(name, str) else None
         return None
 
     async def open_access_point(self, access_point_id: str) -> bool:

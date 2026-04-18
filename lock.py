@@ -55,7 +55,7 @@ class GlutzLock(LockEntity):
         self._attr_unique_id = f"glutz_{self._access_point_id}"
         self._attr_is_locked = True
         self._attr_available = True
-        self._relock_task: asyncio.Task | None = None
+        self._relock_task: asyncio.Task[None] | None = None
 
     @property
     def device_info(self) -> DeviceInfo:

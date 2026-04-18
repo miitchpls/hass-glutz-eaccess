@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.config_entries import ConfigEntry
@@ -13,4 +13,4 @@ _TO_REDACT = {CONF_PASSWORD}
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
-    return async_redact_data(dict(entry.data), _TO_REDACT)
+    return cast(dict[str, Any], async_redact_data(dict(entry.data), _TO_REDACT))

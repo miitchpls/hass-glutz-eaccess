@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
@@ -17,6 +17,9 @@ from .api import (
     set_new_password,
 )
 from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigFlowResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,12 +72,16 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._invitation: dict[str, str] | None = None
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="user", menu_options=["credentials", "invitation"]
         )
 
-    async def async_step_credentials(self, user_input: dict[str, Any] | None = None):
+    async def async_step_credentials(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -106,7 +113,9 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="credentials", data_schema=STEP_CREDENTIALS_SCHEMA, errors=errors
         )
 
-    async def async_step_invitation(self, user_input: dict[str, Any] | None = None):
+    async def async_step_invitation(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -114,22 +123,20 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 parsed = parse_invitation(user_input["invite_url"])
             except ValueError:
                 errors["base"] = "invalid_invitation"
-
-            if not errors:
+            else:
                 try:
                     host = await resolve_instance_host(
                         self.hass, parsed["cloud_host"], parsed["system_path"]
                     )
                 except GlutzConnectionError:
                     errors["base"] = "cannot_connect"
-
-            if not errors:
-                self._invitation = {
-                    "host": host,
-                    "email": parsed["email"],
-                    "token": parsed["token"],
-                }
-                return await self.async_step_invitation_confirm()
+                else:
+                    self._invitation = {
+                        "host": host,
+                        "email": parsed["email"],
+                        "token": parsed["token"],
+                    }
+                    return await self.async_step_invitation_confirm()
 
         return self.async_show_form(
             step_id="invitation", data_schema=STEP_INVITATION_SCHEMA, errors=errors
@@ -137,7 +144,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_invitation_confirm(
         self, user_input: dict[str, Any] | None = None
-    ):
+    ) -> ConfigFlowResult:
         assert self._invitation is not None
         errors: dict[str, str] = {}
         default_host = f"https://{self._invitation['host']}"
