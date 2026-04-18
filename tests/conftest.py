@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import AsyncMock
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+COMPONENT_ROOT = os.path.join(PROJECT_ROOT, "custom_components", "glutz_eaccess")
 
 # ---------------------------------------------------------------------------
 # Minimal HomeAssistant stubs — avoids installing the full HA package
@@ -117,7 +118,7 @@ ha.config_entries = ha_ce
 
 if "glutz_eaccess" not in sys.modules:
     pkg = types.ModuleType("glutz_eaccess")
-    pkg.__path__ = [PROJECT_ROOT]
+    pkg.__path__ = [COMPONENT_ROOT]
     pkg.__package__ = "glutz_eaccess"
     sys.modules["glutz_eaccess"] = pkg
 
@@ -125,7 +126,7 @@ if "glutz_eaccess" not in sys.modules:
 import importlib.util as _ilu
 
 def _load_as(module_name: str, file_name: str) -> types.ModuleType:
-    path = os.path.join(PROJECT_ROOT, file_name)
+    path = os.path.join(COMPONENT_ROOT, file_name)
     spec = _ilu.spec_from_file_location(
         module_name, path,
         submodule_search_locations=[] if file_name == "__init__.py" else None,
