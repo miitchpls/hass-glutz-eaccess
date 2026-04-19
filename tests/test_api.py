@@ -102,6 +102,39 @@ class TestGlutzAPIRpc:
             with pytest.raises(GlutzConnectionError):
                 await api._rpc("some.method", [])
 
+    async def test_missing_result_raises_connection_error(self):
+        session = _mock_post_session(200, json_body={})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            with pytest.raises(GlutzConnectionError):
+                await api._rpc("some.method", [])
+
+    async def test_error_with_auth_message_raises_auth_error(self):
+        session = _mock_post_session(
+            200, json_body={"error": {"code": -32000, "message": "Unauthorized access"}}
+        )
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            with pytest.raises(GlutzAuthError):
+                await api._rpc("some.method", [])
+
+    async def test_rpc_id_increments_across_calls(self):
+        session = _mock_post_session(200, json_body={"result": {}})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            await api._rpc("m1", [])
+            await api._rpc("m2", [])
+        calls = session.post.call_args_list
+        assert calls[0][1]["json"]["id"] == 1
+        assert calls[1][1]["json"]["id"] == 2
+
+    async def test_rpc_passes_timeout(self):
+        session = _mock_post_session(200, json_body={"result": {}})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            await api._rpc("m", [])
+        assert session.post.call_args[1]["timeout"] is not None
+
 
 class TestGlutzAPIMethods:
     async def test_get_access_points_returns_list(self):
@@ -111,6 +144,13 @@ class TestGlutzAPIMethods:
             api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
             result = await api.get_access_points()
         assert result == aps
+
+    async def test_get_access_points_raises_when_accesspoints_missing(self):
+        session = _mock_post_session(200, json_body={"result": {}})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            with pytest.raises(GlutzConnectionError):
+                await api.get_access_points()
 
     async def test_open_access_point_sends_action_2(self):
         session = _mock_post_session(200, json_body={"result": {"status": "success"}})

@@ -11,6 +11,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 _LOGGER = logging.getLogger(__name__)
 
+RPC_TIMEOUT = aiohttp.ClientTimeout(total=10)
+_AUTH_ERROR_TOKENS = ("unauthor", "forbidden", "permission denied", "invalid credentials")
+
 
 class GlutzAuthError(Exception):
     """Raised when authentication fails (invalid credentials)."""
@@ -18,6 +21,17 @@ class GlutzAuthError(Exception):
 
 class GlutzConnectionError(Exception):
     """Raised when the API is unreachable or returns an unexpected response."""
+
+
+def _raise_rpc_error(method: str, error: Any) -> None:
+    """Raise GlutzAuthError or GlutzConnectionError based on a JSON-RPC error payload."""
+    if isinstance(error, dict):
+        message = str(error.get("message") or error)
+    else:
+        message = str(error)
+    if any(token in message.lower() for token in _AUTH_ERROR_TOKENS):
+        raise GlutzAuthError(f"{method}: {message}")
+    raise GlutzConnectionError(f"{method}: {message}")
 
 
 def parse_invitation(url: str) -> dict[str, str]:
@@ -113,33 +127,41 @@ class GlutzAPI:
     ) -> None:
         self._hass = hass
         self._url = f"{host}/rpc/"
+        self._rpc_id = 0
         token = base64.b64encode(f"{username}:{password}".encode()).decode()
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Authorization": f"Basic {token}",
             "Accept": "*/*",
             "Accept-Language": language,
-            "User-Agent": "eAccess/76 CFNetwork/3826.500.131 Darwin/24.5.0",
         }
 
     async def _rpc(self, method: str, params: list[Any]) -> dict[str, Any]:
         """Send a JSON-RPC 2.0 request and return the result payload."""
+        self._rpc_id += 1
         payload: dict[str, Any] = {
             "jsonrpc": "2.0",
             "method": method,
             "params": params,
-            "id": 1,
+            "id": self._rpc_id,
         }
         session = async_get_clientsession(self._hass)
         try:
-            async with session.post(self._url, json=payload, headers=self._headers) as resp:
+            async with session.post(
+                self._url,
+                json=payload,
+                headers=self._headers,
+                timeout=RPC_TIMEOUT,
+            ) as resp:
                 _LOGGER.debug("RPC %s returned HTTP %s", method, resp.status)
                 if resp.status == 401:
                     raise GlutzAuthError("Invalid credentials")
                 resp.raise_for_status()
                 data: dict[str, Any] = await resp.json()
                 if "error" in data:
-                    raise GlutzConnectionError(data["error"])
+                    _raise_rpc_error(method, data["error"])
+                if "result" not in data:
+                    raise GlutzConnectionError(f"{method}: missing 'result' in response")
                 return cast(dict[str, Any], data["result"])
         except aiohttp.ClientError as err:
             raise GlutzConnectionError(str(err)) from err
@@ -147,7 +169,16 @@ class GlutzAPI:
     async def get_access_points(self) -> list[dict[str, Any]]:
         """Return all access points available to the authenticated user."""
         result = await self._rpc("eAccess.getAccessPointsRelatedToLoggedInUser", [])
-        return cast(list[dict[str, Any]], result["accessPoints"])
+        if not isinstance(result, dict):
+            raise GlutzConnectionError(
+                "Unexpected getAccessPointsRelatedToLoggedInUser response"
+            )
+        access_points = result.get("accessPoints")
+        if not isinstance(access_points, list):
+            raise GlutzConnectionError(
+                "Missing 'accessPoints' in getAccessPointsRelatedToLoggedInUser response"
+            )
+        return cast(list[dict[str, Any]], access_points)
 
     async def get_system_info(self) -> dict[str, str]:
         """Return the system info (id, name) for the logged-in user's instance.
@@ -173,7 +204,9 @@ class GlutzAPI:
             "eAccess.executeAccessPointAsLoggedInUser",
             [access_point_id, 2],
         )
-        return result.get("status") == "success"
+        status = result.get("status") if isinstance(result, dict) else None
+        _LOGGER.debug("open_access_point(%s) -> %s", access_point_id, status)
+        return status == "success"
 
     async def close_access_point(self, access_point_id: str) -> bool:
         """Force-lock an access point using action 16."""
@@ -181,4 +214,6 @@ class GlutzAPI:
             "eAccess.executeAccessPointAsLoggedInUser",
             [access_point_id, 16],
         )
-        return result.get("status") == "success"
+        status = result.get("status") if isinstance(result, dict) else None
+        _LOGGER.debug("close_access_point(%s) -> %s", access_point_id, status)
+        return status == "success"
