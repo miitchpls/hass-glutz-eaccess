@@ -3,7 +3,7 @@ name: Publish pyglutz-eaccess to PyPI
 on:
   push:
     tags:
-      - "v*"
+      - "pyglutz-eaccess-v*"
   workflow_dispatch:
 
 jobs:
