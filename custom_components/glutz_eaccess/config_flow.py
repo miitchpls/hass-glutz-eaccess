@@ -10,7 +10,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import (
+from pyglutz_eaccess import (
     GlutzAPI,
     GlutzAuthError,
     GlutzConnectionError,

@@ -6,7 +6,7 @@ import pytest
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.coordinator import SCAN_INTERVAL, GlutzCoordinator
 
 

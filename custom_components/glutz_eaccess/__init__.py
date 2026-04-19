@@ -4,7 +4,7 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platfor
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import GlutzAPI
+from pyglutz_eaccess import GlutzAPI
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
 
 PLATFORMS = [Platform.LOCK]

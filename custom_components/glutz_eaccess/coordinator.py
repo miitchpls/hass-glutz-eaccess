@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import GlutzAPI, GlutzAuthError, GlutzConnectionError
+from pyglutz_eaccess import GlutzAPI, GlutzAuthError, GlutzConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -213,9 +213,8 @@ def _load_as(module_name: str, file_name: str) -> types.ModuleType:
     return mod
 
 
-# Load in dependency order (api first, no relative imports)
+# Load in dependency order (no relative imports)
 _load_as("glutz_eaccess.const", "const.py")
-_load_as("glutz_eaccess.api", "api.py")
 _load_as("glutz_eaccess.coordinator", "coordinator.py")
 _load_as("glutz_eaccess.config_flow", "config_flow.py")
 _load_as("glutz_eaccess.lock", "lock.py")

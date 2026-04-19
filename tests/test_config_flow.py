@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import voluptuous as vol
 
-from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.config_flow import GlutzConfigFlow, _is_valid_password
 
 USER_INPUT = {

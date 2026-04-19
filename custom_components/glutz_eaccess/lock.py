@@ -10,7 +10,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import GlutzAuthError, GlutzConnectionError
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from .const import DOMAIN
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
 

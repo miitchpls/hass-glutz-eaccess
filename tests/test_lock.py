@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 
-from glutz_eaccess.api import GlutzAuthError, GlutzConnectionError
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from glutz_eaccess.lock import GlutzLock, async_setup_entry
 
 AP_WITH_LOCATION = {"accessPointId": "ap-1", "location": ["Building A", "Floor 1", "Main Door"]}
