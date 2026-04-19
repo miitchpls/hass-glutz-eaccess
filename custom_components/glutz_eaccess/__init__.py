@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
-from .api import GlutzAPI, GlutzAuthError, GlutzConnectionError
-from .const import DOMAIN
+from .api import GlutzAPI
+from .coordinator import GlutzConfigEntry, GlutzCoordinator
 
 PLATFORMS = [Platform.LOCK]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> bool:
     api = GlutzAPI(
         hass,
         entry.data[CONF_HOST],
@@ -19,20 +17,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_PASSWORD],
         language=hass.config.language,
     )
-    try:
-        await api.get_system_info()
-    except GlutzAuthError as err:
-        raise ConfigEntryAuthFailed("Invalid credentials") from err
-    except GlutzConnectionError as err:
-        raise ConfigEntryNotReady(str(err)) from err
-
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = api
+    coordinator = GlutzCoordinator(hass, api, entry)
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    unload_ok: bool = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok
+async def async_unload_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> bool:
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

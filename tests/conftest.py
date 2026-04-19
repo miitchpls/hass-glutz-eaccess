@@ -126,6 +126,53 @@ class _DeviceInfo(dict):
         super().__init__(kwargs)
 ha_entity.DeviceInfo = _DeviceInfo
 
+# homeassistant.helpers.update_coordinator
+ha_uc = _stub_module("homeassistant.helpers.update_coordinator")
+
+class _UpdateFailed(Exception):
+    pass
+
+class _DataUpdateCoordinator:
+    def __init__(self, hass, logger, *, name, update_interval, config_entry=None):
+        self.hass = hass
+        self.logger = logger
+        self.name = name
+        self.update_interval = update_interval
+        self.config_entry = config_entry
+        self.data = None
+        self.last_update_success = True
+
+    async def async_config_entry_first_refresh(self) -> None:
+        self.data = await self._async_update_data()
+
+    async def _async_update_data(self):  # pragma: no cover - overridden
+        raise NotImplementedError
+
+    def __class_getitem__(cls, _item):
+        return cls
+
+
+class _CoordinatorEntity:
+    _attr_available: bool = True
+
+    def __init__(self, coordinator):
+        self.coordinator = coordinator
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
+
+    def async_write_ha_state(self) -> None:
+        pass
+
+    def __class_getitem__(cls, _item):
+        return cls
+
+
+ha_uc.DataUpdateCoordinator = _DataUpdateCoordinator
+ha_uc.CoordinatorEntity = _CoordinatorEntity
+ha_uc.UpdateFailed = _UpdateFailed
+
 # Top-level homeassistant
 ha = _stub_module("homeassistant")
 ha.config_entries = ha_ce
@@ -160,6 +207,7 @@ def _load_as(module_name: str, file_name: str) -> types.ModuleType:
 # Load in dependency order (api first, no relative imports)
 _load_as("glutz_eaccess.const", "const.py")
 _load_as("glutz_eaccess.api", "api.py")
+_load_as("glutz_eaccess.coordinator", "coordinator.py")
 _load_as("glutz_eaccess.config_flow", "config_flow.py")
 _load_as("glutz_eaccess.lock", "lock.py")
 _load_as("glutz_eaccess.diagnostics", "diagnostics.py")
