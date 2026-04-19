@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import GlutzAPI
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
@@ -11,7 +12,7 @@ PLATFORMS = [Platform.LOCK]
 
 async def async_setup_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> bool:
     api = GlutzAPI(
-        hass,
+        async_get_clientsession(hass),
         entry.data[CONF_HOST],
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],

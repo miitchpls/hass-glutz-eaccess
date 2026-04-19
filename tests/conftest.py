@@ -10,6 +10,12 @@ from unittest.mock import AsyncMock
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPONENT_ROOT = os.path.join(PROJECT_ROOT, "custom_components", "glutz_eaccess")
 
+# Make the sibling `pyglutz_eaccess` package importable without installing it,
+# so `.api` (a thin re-export) resolves during tests.
+_PKG_SRC = os.path.join(PROJECT_ROOT, "packages", "pyglutz_eaccess", "src")
+if _PKG_SRC not in sys.path:
+    sys.path.insert(0, _PKG_SRC)
+
 # ---------------------------------------------------------------------------
 # Minimal HomeAssistant stubs — avoids installing the full HA package
 # ---------------------------------------------------------------------------
@@ -116,7 +122,10 @@ ha_ep.AddEntitiesCallback = object
 # homeassistant.helpers.aiohttp_client
 ha_aiohttp = _stub_module("homeassistant.helpers.aiohttp_client")
 def _async_get_clientsession(hass):
-    raise RuntimeError("async_get_clientsession must be patched in tests")
+    # Identity shim for tests: returns the hass mock itself so test assertions
+    # can treat the "session" and "hass" as interchangeable when GlutzAPI /
+    # resolve_instance_host / set_new_password are patched.
+    return hass
 ha_aiohttp.async_get_clientsession = _async_get_clientsession
 
 # homeassistant.helpers.entity

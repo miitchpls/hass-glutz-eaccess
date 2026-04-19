@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import (
     GlutzAPI,
@@ -96,7 +97,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             api = GlutzAPI(
-                self.hass,
+                async_get_clientsession(self.hass),
                 user_input[CONF_HOST],
                 user_input[CONF_USERNAME],
                 user_input[CONF_PASSWORD],
@@ -136,7 +137,9 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 try:
                     host = await resolve_instance_host(
-                        self.hass, parsed["cloud_host"], parsed["system_path"]
+                        async_get_clientsession(self.hass),
+                        parsed["cloud_host"],
+                        parsed["system_path"],
                     )
                 except GlutzConnectionError:
                     errors["base"] = "cannot_connect"
@@ -173,7 +176,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 try:
                     await set_new_password(
-                        self.hass,
+                        async_get_clientsession(self.hass),
                         urlparse(full_host).hostname or full_host,
                         self._invitation["token"],
                         password,
@@ -184,7 +187,9 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_connect"
 
                 if not errors:
-                    api = GlutzAPI(self.hass, full_host, email, password)
+                    api = GlutzAPI(
+                        async_get_clientsession(self.hass), full_host, email, password
+                    )
                     info = await _resolve_system_info(api)
                     system_id = info.get("id") or self._invitation.get("system_id")
                     if not system_id:
@@ -220,7 +225,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             api = GlutzAPI(
-                self.hass,
+                async_get_clientsession(self.hass),
                 user_input[CONF_HOST],
                 user_input[CONF_USERNAME],
                 user_input[CONF_PASSWORD],
