@@ -1,4 +1,21 @@
 {
+  "exceptions": {
+    "auth_error": {
+      "message": "Échec de l'authentification pour le point d'accès {access_point_id}."
+    },
+    "open_access_point_error": {
+      "message": "Erreur lors de l'ouverture du point d'accès {access_point_id}."
+    },
+    "open_access_point_failed": {
+      "message": "Impossible d'ouvrir le point d'accès {access_point_id}."
+    },
+    "close_access_point_error": {
+      "message": "Erreur lors du verrouillage du point d'accès {access_point_id}."
+    },
+    "close_access_point_failed": {
+      "message": "Impossible de verrouiller le point d'accès {access_point_id}."
+    }
+  },
   "config": {
     "step": {
       "user": {

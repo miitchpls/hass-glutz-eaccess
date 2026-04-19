@@ -77,16 +77,22 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         except GlutzAuthError as err:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                f"Authentication failed for access point {self._access_point_id}"
+                translation_domain=DOMAIN,
+                translation_key="auth_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
             ) from err
         except GlutzConnectionError as err:
             raise HomeAssistantError(
-                f"Error opening access point {self._access_point_id}: {err}"
+                translation_domain=DOMAIN,
+                translation_key="open_access_point_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
             ) from err
 
         if not success:
             raise HomeAssistantError(
-                f"Failed to open access point {self._access_point_id}"
+                translation_domain=DOMAIN,
+                translation_key="open_access_point_failed",
+                translation_placeholders={"access_point_id": self._access_point_id},
             )
         self._attr_is_locked = False
         self.async_write_ha_state()
@@ -103,16 +109,22 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         except GlutzAuthError as err:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                f"Authentication failed for access point {self._access_point_id}"
+                translation_domain=DOMAIN,
+                translation_key="auth_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
             ) from err
         except GlutzConnectionError as err:
             raise HomeAssistantError(
-                f"Error locking access point {self._access_point_id}: {err}"
+                translation_domain=DOMAIN,
+                translation_key="close_access_point_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
             ) from err
 
         if not success:
             raise HomeAssistantError(
-                f"Failed to lock access point {self._access_point_id}"
+                translation_domain=DOMAIN,
+                translation_key="close_access_point_failed",
+                translation_placeholders={"access_point_id": self._access_point_id},
             )
         if self._relock_task:
             self._relock_task.cancel()

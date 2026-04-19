@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.glutz_eaccess.diagnostics import (
     async_get_config_entry_diagnostics,
 )
+from tests.conftest import MOCK_ACCESS_POINTS
 
 
 async def test_entry_diagnostics_redacts_password(
@@ -23,6 +24,20 @@ async def test_entry_diagnostics_redacts_password(
 
     diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 
-    assert diag[CONF_PASSWORD] == "**REDACTED**"
-    assert diag[CONF_HOST] == "https://example.com"
-    assert diag[CONF_USERNAME] == "user"
+    assert diag["config_entry"][CONF_PASSWORD] == "**REDACTED**"
+    assert diag["config_entry"][CONF_HOST] == "https://example.com"
+    assert diag["config_entry"][CONF_USERNAME] == "user"
+
+
+async def test_entry_diagnostics_includes_access_points(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Coordinator access-point data is included in the diagnostics payload."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
+
+    assert diag["access_points"] == MOCK_ACCESS_POINTS
