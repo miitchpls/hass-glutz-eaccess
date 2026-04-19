@@ -1,3 +1,2 @@
-pytest>=7.0
-pytest-asyncio>=0.21
-homeassistant
+pytest-homeassistant-custom-component
+-e ./packages/pyglutz_eaccess

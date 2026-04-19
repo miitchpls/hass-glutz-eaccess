@@ -1,31 +1,28 @@
+"""Tests for the Glutz eAccess diagnostics."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock
 
-from glutz_eaccess.diagnostics import async_get_config_entry_diagnostics
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.glutz_eaccess.diagnostics import (
+    async_get_config_entry_diagnostics,
+)
 
 
-ENTRY_DATA = {
-    "host": "https://example.com",
-    "username": "user",
-    "password": "secret",
-}
+async def test_entry_diagnostics_redacts_password(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Password must be redacted in diagnostics; other fields preserved."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
+    diag = await async_get_config_entry_diagnostics(hass, mock_config_entry)
 
-class TestAsyncGetConfigEntryDiagnostics:
-    async def test_redacts_password(self):
-        entry = MagicMock()
-        entry.data = ENTRY_DATA
-
-        result = await async_get_config_entry_diagnostics(MagicMock(), entry)
-
-        assert result["password"] == "**REDACTED**"
-
-    async def test_preserves_non_sensitive_fields(self):
-        entry = MagicMock()
-        entry.data = ENTRY_DATA
-
-        result = await async_get_config_entry_diagnostics(MagicMock(), entry)
-
-        assert result["host"] == "https://example.com"
-        assert result["username"] == "user"
+    assert diag[CONF_PASSWORD] == "**REDACTED**"
+    assert diag[CONF_HOST] == "https://example.com"
+    assert diag[CONF_USERNAME] == "user"

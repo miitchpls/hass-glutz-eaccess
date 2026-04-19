@@ -1,226 +1,233 @@
+"""Tests for the Glutz eAccess lock platform."""
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
+from homeassistant.components.lock import (
+    DOMAIN as LOCK_DOMAIN,
+    SERVICE_LOCK,
+    SERVICE_UNLOCK,
+)
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    STATE_LOCKED,
+    STATE_UNAVAILABLE,
+    STATE_UNLOCKED,
+)
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
-from glutz_eaccess.lock import GlutzLock, async_setup_entry
+from custom_components.glutz_eaccess.const import DOMAIN
+from custom_components.glutz_eaccess.coordinator import SCAN_INTERVAL
+from custom_components.glutz_eaccess.lock import UNLOCK_DURATION
 
-AP_WITH_LOCATION = {"accessPointId": "ap-1", "location": ["Building A", "Floor 1", "Main Door"]}
-AP_NO_LOCATION = {"accessPointId": "ap-2", "location": []}
-AP_MISSING_LOCATION = {"accessPointId": "ap-3"}
-
-
-def _make_coordinator(api, access_points: list[dict] | None = None) -> MagicMock:
-    coordinator = MagicMock()
-    coordinator.api = api
-    coordinator.last_update_success = True
-    coordinator.data = {
-        ap["accessPointId"]: ap for ap in (access_points or [AP_WITH_LOCATION])
-    }
-    entry = MagicMock()
-    entry.async_start_reauth = MagicMock()
-    coordinator.config_entry = entry
-    return coordinator
+MAIN_DOOR = "lock.main_door"
+FALLBACK_DOOR = "lock.door_ap_2"
 
 
-def _make_lock(api, access_point: dict, coordinator: MagicMock | None = None) -> GlutzLock:
-    coordinator = coordinator or _make_coordinator(api, [access_point])
-    lock = GlutzLock(coordinator, access_point)
-    lock.hass = MagicMock()
-    lock.hass.async_create_task = lambda coro: asyncio.ensure_future(coro)
-    lock.async_write_ha_state = MagicMock()
-    return lock
+async def _call_service(hass: HomeAssistant, service: str, entity_id: str) -> None:
+    await hass.services.async_call(
+        LOCK_DOMAIN, service, {ATTR_ENTITY_ID: entity_id}, blocking=True
+    )
 
 
-class TestAsyncSetupEntry:
-    async def test_creates_one_entity_per_access_point(self, mock_api, sample_access_points):
-        coordinator = _make_coordinator(mock_api, sample_access_points)
-        entry = MagicMock()
-        entry.runtime_data = coordinator
+async def test_setup_creates_entity_per_access_point(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """One lock entity is created for each access point returned by the API."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-        added: list[GlutzLock] = []
-        async_add_entities = MagicMock(side_effect=lambda it: added.extend(it))
-
-        await async_setup_entry(MagicMock(), entry, async_add_entities)
-
-        assert len(added) == len(sample_access_points)
-        assert all(isinstance(e, GlutzLock) for e in added)
+    assert hass.states.get(MAIN_DOOR) is not None
+    assert hass.states.get(FALLBACK_DOOR) is not None
 
 
-class TestGlutzLockInit:
-    def test_entity_name_is_none(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_WITH_LOCATION)
-        assert lock._attr_name is None
+async def test_entity_name_falls_back_to_access_point_id(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Device name falls back to 'Door <id>' when no location is reported."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-    def test_device_name_from_last_location_element(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_WITH_LOCATION)
-        assert lock._device_name == "Main Door"
-
-    def test_device_name_fallback_when_no_location(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_NO_LOCATION)
-        assert lock._device_name == "Door ap-2"
-
-    def test_device_name_fallback_when_location_missing(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_MISSING_LOCATION)
-        assert lock._device_name == "Door ap-3"
-
-    def test_unique_id(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_WITH_LOCATION)
-        assert lock._attr_unique_id == "glutz_ap-1"
-
-    def test_initial_state_is_locked(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_WITH_LOCATION)
-        assert lock._attr_is_locked is True
-
-    def test_device_info(self, mock_api):
-        lock = GlutzLock(_make_coordinator(mock_api), AP_WITH_LOCATION)
-        info = lock.device_info
-        assert ("glutz_eaccess", "ap-1") in info["identifiers"]
-        assert info["name"] == "Main Door"
-        assert info["manufacturer"] == "Glutz"
+    assert hass.states.get(FALLBACK_DOOR).attributes["friendly_name"] == "Door ap-2"
 
 
-class TestAvailability:
-    def test_available_when_coordinator_healthy_and_ap_present(self, mock_api):
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        lock = GlutzLock(coordinator, AP_WITH_LOCATION)
-        assert lock.available is True
+async def test_initial_state_is_locked(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """A newly-created entity starts in the locked state."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-    def test_unavailable_when_coordinator_failed(self, mock_api):
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        coordinator.last_update_success = False
-        lock = GlutzLock(coordinator, AP_WITH_LOCATION)
-        assert lock.available is False
-
-    def test_unavailable_when_access_point_disappears(self, mock_api):
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        lock = GlutzLock(coordinator, AP_WITH_LOCATION)
-        coordinator.data = {}  # access point no longer reported
-        assert lock.available is False
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
 
 
-class TestAsyncUnlock:
-    async def test_sets_unlocked_on_success(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
-        assert lock._attr_is_locked is False
+async def test_unlock_calls_api_and_updates_state(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """The unlock service calls the API and flips the state to unlocked."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-    async def test_creates_relock_task(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
-        assert lock._relock_task is not None
-        lock._relock_task.cancel()
+    await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
 
-    async def test_cancels_existing_relock_task_on_second_unlock(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
-        first_task = lock._relock_task
-        await lock.async_unlock()
-        await asyncio.sleep(0)
-        assert first_task.cancelled()
-        if lock._relock_task:
-            lock._relock_task.cancel()
-
-    async def test_connection_error_raises_without_mutating_available(self, mock_api):
-        mock_api.open_access_point = AsyncMock(side_effect=GlutzConnectionError)
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        with pytest.raises(HomeAssistantError):
-            await lock.async_unlock()
-        # availability is now coordinator-driven; entity's _attr_available stays default
-        assert lock._attr_is_locked is True
-
-    async def test_raises_when_api_returns_false(self, mock_api):
-        mock_api.open_access_point = AsyncMock(return_value=False)
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        with pytest.raises(HomeAssistantError):
-            await lock.async_unlock()
-        assert lock._attr_is_locked is True
+    mock_api.open_access_point.assert_awaited_once_with("ap-1")
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
 
 
-class TestAsyncLock:
-    async def test_sets_locked_on_success(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        lock._attr_is_locked = False
-        await lock.async_lock()
-        assert lock._attr_is_locked is True
+async def test_auto_relock_returns_state_to_locked(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    freezer,
+) -> None:
+    """After UNLOCK_DURATION the entity reverts to locked automatically."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-    async def test_cancels_pending_relock_task(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        await lock.async_unlock()
-        assert lock._relock_task is not None
-        await lock.async_lock()
-        assert lock._relock_task is None
+    await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
 
-    async def test_connection_error_raises(self, mock_api):
-        mock_api.close_access_point = AsyncMock(side_effect=GlutzConnectionError)
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        with pytest.raises(HomeAssistantError):
-            await lock.async_lock()
+    freezer.tick(UNLOCK_DURATION + 1)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
-    async def test_raises_when_api_returns_false(self, mock_api):
-        mock_api.close_access_point = AsyncMock(return_value=False)
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-        lock._attr_is_locked = False
-        with pytest.raises(HomeAssistantError):
-            await lock.async_lock()
-        assert lock._attr_is_locked is False
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
 
 
-class TestRelock:
-    async def test_relock_sets_locked_after_duration(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
+async def test_lock_cancels_pending_auto_relock(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Calling lock while an auto-relock is pending cancels it cleanly."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-        with patch("glutz_eaccess.lock.asyncio.sleep", new_callable=AsyncMock):
-            await lock.async_unlock()
-            task = lock._relock_task
-            if task:
-                await task
+    await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
+    await _call_service(hass, SERVICE_LOCK, MAIN_DOOR)
 
-        assert lock._attr_is_locked is True
-
-    async def test_relock_clears_task_reference(self, mock_api):
-        lock = _make_lock(mock_api, AP_WITH_LOCATION)
-
-        with patch("glutz_eaccess.lock.asyncio.sleep", new_callable=AsyncMock):
-            await lock.async_unlock()
-            task = lock._relock_task
-            if task:
-                await task
-
-        assert lock._relock_task is None
+    mock_api.close_access_point.assert_awaited_once_with("ap-1")
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
 
 
-class TestAuthErrorTriggersReauth:
-    async def test_unlock_auth_error_starts_reauth(self, mock_api):
-        mock_api.open_access_point = AsyncMock(side_effect=GlutzAuthError)
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        lock = _make_lock(mock_api, AP_WITH_LOCATION, coordinator=coordinator)
+async def test_unlock_connection_error_raises_and_preserves_state(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Transient connection errors surface as HomeAssistantError; state stays locked."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    mock_api.open_access_point = AsyncMock(side_effect=GlutzConnectionError("boom"))
 
-        with pytest.raises(HomeAssistantError):
-            await lock.async_unlock()
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
 
-        coordinator.config_entry.async_start_reauth.assert_called_once_with(lock.hass)
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
 
-    async def test_lock_auth_error_starts_reauth(self, mock_api):
-        mock_api.close_access_point = AsyncMock(side_effect=GlutzAuthError)
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        lock = _make_lock(mock_api, AP_WITH_LOCATION, coordinator=coordinator)
 
-        with pytest.raises(HomeAssistantError):
-            await lock.async_lock()
+async def test_unlock_api_returns_false_raises(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """When the API reports failure we raise without flipping state."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    mock_api.open_access_point = AsyncMock(return_value=False)
 
-        coordinator.config_entry.async_start_reauth.assert_called_once_with(lock.hass)
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
 
-    async def test_unlock_connection_error_does_not_start_reauth(self, mock_api):
-        mock_api.open_access_point = AsyncMock(side_effect=GlutzConnectionError)
-        coordinator = _make_coordinator(mock_api, [AP_WITH_LOCATION])
-        lock = _make_lock(mock_api, AP_WITH_LOCATION, coordinator=coordinator)
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
 
-        with pytest.raises(HomeAssistantError):
-            await lock.async_unlock()
 
-        coordinator.config_entry.async_start_reauth.assert_not_called()
+async def test_lock_api_returns_false_raises(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """When close_access_point returns False we raise and state stays unlocked."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
+    mock_api.close_access_point = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_LOCK, MAIN_DOOR)
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
+
+
+@pytest.mark.parametrize("service", [SERVICE_UNLOCK, SERVICE_LOCK])
+async def test_auth_error_starts_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    service: str,
+) -> None:
+    """Auth failure on either lock or unlock triggers a reauth flow."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    method = "open_access_point" if service == SERVICE_UNLOCK else "close_access_point"
+    setattr(mock_api, method, AsyncMock(side_effect=GlutzAuthError("nope")))
+
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, service, MAIN_DOOR)
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert any(f["context"].get("source") == "reauth" for f in flows)
+
+
+async def test_entity_unavailable_when_coordinator_fails(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    freezer,
+) -> None:
+    """Coordinator update failure propagates to entity availability."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError("down"))
+    freezer.tick(SCAN_INTERVAL)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNAVAILABLE
+
+
+async def test_entity_unavailable_when_access_point_disappears(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    freezer,
+) -> None:
+    """An entity becomes unavailable if its access point vanishes from the API."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    mock_api.get_access_points = AsyncMock(
+        return_value=[{"accessPointId": "ap-2", "location": []}]
+    )
+    freezer.tick(SCAN_INTERVAL)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNAVAILABLE
+    assert hass.states.get(FALLBACK_DOOR).state == STATE_LOCKED

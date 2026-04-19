@@ -160,7 +160,8 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_invitation_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        assert self._invitation is not None
+        if self._invitation is None:
+            return self.async_abort(reason="unknown")
         errors: dict[str, str] = {}
         default_host = f"https://{self._invitation['host']}"
         default_email = self._invitation["email"]

@@ -52,6 +52,7 @@
     "abort": {
       "already_configured": "Cette instance Glutz est déjà configurée.",
       "reauth_successful": "La ré-authentification a réussi.",
+      "unknown": "Une erreur inattendue s'est produite.",
       "wrong_account": "Les identifiants appartiennent à un système Glutz différent de celui qui est ré-authentifié."
     }
   }

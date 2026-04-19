@@ -1,16 +1,37 @@
+"""Tests for the Glutz eAccess config flow."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import contextlib
+from unittest.mock import AsyncMock, patch
 
+import pytest
 import voluptuous as vol
+from homeassistant.config_entries import SOURCE_USER
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
-from glutz_eaccess.config_flow import GlutzConfigFlow, _is_valid_password
+from custom_components.glutz_eaccess.config_flow import _is_valid_password
+from custom_components.glutz_eaccess.const import DOMAIN
 
-USER_INPUT = {
-    "host": "https://example.com",
-    "username": "user",
-    "password": "secret",
+CREDENTIALS_INPUT = {
+    CONF_HOST: "https://example.com",
+    CONF_USERNAME: "user",
+    CONF_PASSWORD: "secret",
+}
+
+CONFIRM_INPUT = {
+    CONF_HOST: "https://instance.example.com",
+    CONF_USERNAME: "user@example.com",
+    CONF_PASSWORD: "Secure1!",
+}
+
+REAUTH_INPUT = {
+    CONF_HOST: "https://new.example.com",
+    CONF_USERNAME: "new@example.com",
+    CONF_PASSWORD: "new_password",
 }
 
 INVITE_URL = (
@@ -19,399 +40,495 @@ INVITE_URL = (
 )
 
 
-def _make_flow() -> GlutzConfigFlow:
-    flow = GlutzConfigFlow()
-    flow.hass = MagicMock()
-    flow.async_show_form = MagicMock(return_value={"type": "form"})
-    flow.async_show_menu = MagicMock(return_value={"type": "menu"})
-    flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
-    flow.async_set_unique_id = AsyncMock(return_value=None)
-    flow._abort_if_unique_id_configured = MagicMock()
-    flow._abort_if_unique_id_mismatch = MagicMock()
-    return flow
+@contextlib.contextmanager
+def _patch_api(api: AsyncMock):
+    """Mock GlutzAPI at both import sites.
+
+    `config_flow.py` and `__init__.py` each do `from pyglutz_eaccess import
+    GlutzAPI`, so they hold independent references. After `CREATE_ENTRY`,
+    `async_setup_entry` runs and uses `__init__.GlutzAPI`, so both must be
+    mocked to avoid the real client being instantiated.
+    """
+    with (
+        patch(
+            "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=api
+        ),
+        patch("custom_components.glutz_eaccess.GlutzAPI", return_value=api),
+    ):
+        yield
+
+
+async def _start_flow(hass: HomeAssistant) -> dict:
+    return await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+
+async def _start_step(hass: HomeAssistant, step: str) -> dict:
+    menu = await _start_flow(hass)
+    return await hass.config_entries.flow.async_configure(
+        menu["flow_id"], {"next_step_id": step}
+    )
+
+
+async def _advance_to_invitation_confirm(hass: HomeAssistant) -> dict:
+    result = await _start_step(hass, "invitation")
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        return_value="instance.example.com",
+    ):
+        return await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"invite_url": INVITE_URL}
+        )
 
 
 class TestIsValidPassword:
-    def test_valid_password(self):
+    """Unit tests for the password policy helper."""
+
+    def test_valid_password(self) -> None:
         assert _is_valid_password("Secure1!") is True
 
-    def test_missing_uppercase(self):
+    def test_missing_uppercase(self) -> None:
         assert _is_valid_password("secure1!") is False
 
-    def test_missing_lowercase(self):
+    def test_missing_lowercase(self) -> None:
         assert _is_valid_password("SECURE1!") is False
 
-    def test_missing_digit(self):
+    def test_missing_digit(self) -> None:
         assert _is_valid_password("Secure!!") is False
 
-    def test_missing_special(self):
+    def test_missing_special(self) -> None:
         assert _is_valid_password("Secure123") is False
 
-    def test_empty_string(self):
-        assert _is_valid_password("") is False
-
-    def test_too_short(self):
+    def test_too_short(self) -> None:
         assert _is_valid_password("Sec1!") is False
 
-    def test_unicode_special_char(self):
+    def test_unicode_special_char(self) -> None:
         assert _is_valid_password("Secure1€") is True
 
-    def test_space_counts_as_special(self):
+    def test_space_counts_as_special(self) -> None:
         assert _is_valid_password("Secure1 ") is True
 
 
-class TestAsyncStepUser:
-    async def test_shows_menu(self):
-        flow = _make_flow()
-        result = await flow.async_step_user(None)
-        flow.async_show_menu.assert_called_once()
-        kwargs = flow.async_show_menu.call_args[1]
-        assert kwargs["step_id"] == "user"
-        assert set(kwargs["menu_options"]) == {"credentials", "invitation"}
-        assert result == {"type": "menu"}
+async def test_user_step_shows_menu(hass: HomeAssistant) -> None:
+    """The initial user step offers credentials or invitation entry points."""
+    result = await _start_flow(hass)
+
+    assert result["type"] == FlowResultType.MENU
+    assert set(result["menu_options"]) == {"credentials", "invitation"}
 
 
-class TestAsyncStepCredentials:
-    async def test_shows_form_when_no_input(self):
-        flow = _make_flow()
-        result = await flow.async_step_credentials(None)
-        flow.async_show_form.assert_called_once()
-        assert result == {"type": "form"}
+# --- credentials step --------------------------------------------------------
 
-    async def test_success_creates_entry(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(
-            return_value={"id": "SYS1", "name": "Palazzo Rossi"}
+
+async def test_credentials_step_shows_form(hass: HomeAssistant) -> None:
+    """Selecting credentials presents the input form."""
+    result = await _start_step(hass, "credentials")
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "credentials"
+
+
+async def test_credentials_success_creates_entry(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """Valid credentials and system info create the config entry."""
+    result = await _start_step(hass, "credentials")
+    mock_api.get_system_info = AsyncMock(
+        return_value={"id": "SYS1", "name": "Palazzo Rossi"}
+    )
+
+    with _patch_api(mock_api):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CREDENTIALS_INPUT
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Palazzo Rossi"
+    assert result["data"] == CREDENTIALS_INPUT
+    assert result["result"].unique_id == "SYS1"
+
+
+async def test_credentials_missing_system_name_uses_default_title(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """A system without a `name` field falls back to the default title."""
+    result = await _start_step(hass, "credentials")
+    mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
+
+    with _patch_api(mock_api):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CREDENTIALS_INPUT
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Glutz eAccess"
+
+
+async def test_credentials_missing_system_id_errors_cannot_connect(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """Without a system id we can't uniquely identify the installation."""
+    result = await _start_step(hass, "credentials")
+    mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CREDENTIALS_INPUT
         )
 
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        flow.async_set_unique_id.assert_awaited_once_with("SYS1")
-        flow._abort_if_unique_id_configured.assert_called_once()
-        flow.async_create_entry.assert_called_once()
-        call_kwargs = flow.async_create_entry.call_args[1]
-        assert call_kwargs["data"] == USER_INPUT
-        assert call_kwargs["title"] == "Palazzo Rossi"
-
-    async def test_missing_system_name_falls_back_to_default_title(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
-
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        call_kwargs = flow.async_create_entry.call_args[1]
-        assert call_kwargs["title"] == "Glutz eAccess"
-
-    async def test_missing_system_id_sets_cannot_connect(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo Rossi"})
-
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-        flow.async_create_entry.assert_not_called()
-
-    async def test_auth_error_sets_invalid_auth(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError)
-
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "invalid_auth"
-
-    async def test_connection_error_sets_cannot_connect(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError)
-
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-
-    async def test_system_info_connection_error_sets_cannot_connect(self):
-        flow = _make_flow()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(side_effect=GlutzConnectionError)
-
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_credentials(USER_INPUT)
-
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-        flow.async_create_entry.assert_not_called()
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
 
 
-class TestAsyncStepInvitation:
-    async def test_shows_form_when_no_input(self):
-        flow = _make_flow()
-        result = await flow.async_step_invitation(None)
-        flow.async_show_form.assert_called_once()
-        assert result == {"type": "form"}
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_credentials_api_errors_map_to_form_errors(
+    hass: HomeAssistant, mock_api: AsyncMock, error, expected
+) -> None:
+    """API-level failures surface as recoverable form errors."""
+    result = await _start_step(hass, "credentials")
+    mock_api.get_access_points = AsyncMock(side_effect=error)
 
-    async def test_invalid_url_sets_error(self):
-        flow = _make_flow()
-        await flow.async_step_invitation({"invite_url": "not a valid url"})
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "invalid_invitation"
-
-    async def test_resolve_failure_sets_cannot_connect(self):
-        flow = _make_flow()
-        with patch(
-            "glutz_eaccess.config_flow.resolve_instance_host",
-            side_effect=GlutzConnectionError,
-        ):
-            await flow.async_step_invitation({"invite_url": INVITE_URL})
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-
-    async def test_success_advances_to_confirm(self):
-        flow = _make_flow()
-        with patch(
-            "glutz_eaccess.config_flow.resolve_instance_host",
-            return_value="instance.example.com",
-        ):
-            await flow.async_step_invitation({"invite_url": INVITE_URL})
-        assert flow._invitation == {
-            "host": "instance.example.com",
-            "email": "user@example.com",
-            "token": "TOK123",
-            "system_id": "SYS123",
-        }
-        assert flow.async_show_form.call_args[1]["step_id"] == "invitation_confirm"
-
-
-class TestAsyncStepInvitationConfirm:
-    def _flow_with_invitation(self, system_id: str | None = "SYS123") -> GlutzConfigFlow:
-        flow = _make_flow()
-        flow._invitation = {
-            "host": "instance.example.com",
-            "email": "user@example.com",
-            "token": "TOK123",
-        }
-        if system_id:
-            flow._invitation["system_id"] = system_id
-        return flow
-
-    async def test_shows_form_when_no_input(self):
-        flow = self._flow_with_invitation()
-        await flow.async_step_invitation_confirm(None)
-        flow.async_show_form.assert_called_once()
-        assert flow.async_show_form.call_args[1]["step_id"] == "invitation_confirm"
-
-    def _submit(self, password: str = "Secure1!") -> dict:
-        return {
-            "host": "https://instance.example.com",
-            "username": "user@example.com",
-            "password": password,
-        }
-
-    async def test_weak_password_sets_error(self):
-        flow = self._flow_with_invitation()
-        await flow.async_step_invitation_confirm(self._submit(password="weak"))
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "invalid_password"
-
-    async def test_success_creates_entry(self):
-        flow = self._flow_with_invitation()
-        mock_api = AsyncMock()
-        mock_api.get_system_info = AsyncMock(
-            return_value={"id": "SYS-API", "name": "Palazzo Rossi"}
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CREDENTIALS_INPUT
         )
-        with patch(
-            "glutz_eaccess.config_flow.set_new_password", new=AsyncMock()
-        ) as mock_setpw, patch(
-            "glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
-        ):
-            await flow.async_step_invitation_confirm(self._submit())
-        mock_setpw.assert_awaited_once_with(
-            flow.hass, "instance.example.com", "TOK123", "Secure1!"
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": expected}
+
+
+async def test_credentials_aborts_when_already_configured(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+) -> None:
+    """A second entry for the same system aborts with already_configured."""
+    mock_config_entry.add_to_hass(hass)
+    result = await _start_step(hass, "credentials")
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CREDENTIALS_INPUT
         )
-        flow.async_set_unique_id.assert_awaited_once_with("SYS-API")
-        flow._abort_if_unique_id_configured.assert_called_once()
-        call_kwargs = flow.async_create_entry.call_args[1]
-        assert call_kwargs["title"] == "Palazzo Rossi"
-        assert call_kwargs["data"] == {
-            "host": "https://instance.example.com",
-            "username": "user@example.com",
-            "password": "Secure1!",
-        }
 
-    async def test_falls_back_to_invitation_system_id_when_api_fails(self):
-        flow = self._flow_with_invitation()
-        mock_api = AsyncMock()
-        mock_api.get_system_info = AsyncMock(side_effect=GlutzConnectionError)
-        with patch(
-            "glutz_eaccess.config_flow.set_new_password", new=AsyncMock()
-        ), patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_invitation_confirm(self._submit())
-        flow.async_set_unique_id.assert_awaited_once_with("SYS123")
-        call_kwargs = flow.async_create_entry.call_args[1]
-        assert call_kwargs["title"] == "Glutz eAccess"
-
-    async def test_no_system_id_anywhere_sets_cannot_connect(self):
-        flow = self._flow_with_invitation(system_id=None)
-        mock_api = AsyncMock()
-        mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo Rossi"})
-        with patch(
-            "glutz_eaccess.config_flow.set_new_password", new=AsyncMock()
-        ), patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_invitation_confirm(self._submit())
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-        flow.async_create_entry.assert_not_called()
-
-    async def test_auth_error_sets_invalid_auth(self):
-        flow = self._flow_with_invitation()
-        with patch(
-            "glutz_eaccess.config_flow.set_new_password",
-            side_effect=GlutzAuthError,
-        ):
-            await flow.async_step_invitation_confirm(self._submit())
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "invalid_auth"
-
-    async def test_connection_error_sets_cannot_connect(self):
-        flow = self._flow_with_invitation()
-        with patch(
-            "glutz_eaccess.config_flow.set_new_password",
-            side_effect=GlutzConnectionError,
-        ):
-            await flow.async_step_invitation_confirm(self._submit())
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
 
 
-class TestAsyncStepReauth:
-    def _flow_with_reauth_entry(self) -> GlutzConfigFlow:
-        flow = _make_flow()
-        entry = MagicMock()
-        entry.data = {
-            "host": "https://example.com",
-            "username": "user@example.com",
-            "password": "old_password",
-        }
-        entry.unique_id = "SYS1"
-        flow._reauth_entry = entry
-        flow._get_reauth_entry = MagicMock(return_value=entry)
-        return flow
+# --- invitation step ---------------------------------------------------------
 
-    async def test_reauth_entrypoint_shows_confirm_form(self):
-        flow = self._flow_with_reauth_entry()
-        await flow.async_step_reauth(flow._reauth_entry.data)
-        flow.async_show_form.assert_called_once()
-        assert flow.async_show_form.call_args[1]["step_id"] == "reauth_confirm"
 
-    async def test_shows_form_when_no_input(self):
-        flow = self._flow_with_reauth_entry()
-        await flow.async_step_reauth_confirm(None)
-        flow.async_show_form.assert_called_once()
-        assert flow.async_show_form.call_args[1]["step_id"] == "reauth_confirm"
+async def test_invitation_step_shows_form(hass: HomeAssistant) -> None:
+    """Selecting invitation presents the URL input form."""
+    result = await _start_step(hass, "invitation")
 
-    def _submit(
-        self,
-        host: str = "https://example.com",
-        username: str = "user@example.com",
-        password: str = "new_password",
-    ) -> dict:
-        return {"host": host, "username": username, "password": password}
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "invitation"
 
-    async def test_success_updates_entry_and_aborts(self):
-        flow = self._flow_with_reauth_entry()
-        flow.async_update_reload_and_abort = MagicMock(
-            return_value={
-                "type": "abort",
-                "reason": "reauth_successful",
-                "data_updates": self._submit(),
-                "entry": flow._reauth_entry,
-            }
+
+async def test_invitation_invalid_url_errors(hass: HomeAssistant) -> None:
+    """A malformed invitation URL produces an invitation-specific error."""
+    result = await _start_step(hass, "invitation")
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"invite_url": "not a valid url"}
+    )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_invitation"}
+
+
+async def test_invitation_resolve_failure_errors_cannot_connect(
+    hass: HomeAssistant,
+) -> None:
+    """Instance host resolution failure maps to cannot_connect."""
+    result = await _start_step(hass, "invitation")
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        side_effect=GlutzConnectionError,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"invite_url": INVITE_URL}
         )
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
 
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            result = await flow.async_step_reauth_confirm(self._submit())
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
 
-        flow.async_set_unique_id.assert_awaited_once_with("SYS1")
-        flow._abort_if_unique_id_mismatch.assert_called_once_with(reason="wrong_account")
-        assert result["type"] == "abort"
-        assert result["reason"] == "reauth_successful"
-        assert result["entry"] is flow._reauth_entry
 
-    async def test_invalid_auth_shows_error(self):
-        flow = self._flow_with_reauth_entry()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError)
+async def test_invitation_success_advances_to_confirm(hass: HomeAssistant) -> None:
+    """Successful resolution advances to the password-set confirmation step."""
+    result = await _advance_to_invitation_confirm(hass)
 
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_reauth_confirm(self._submit(password="wrong"))
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "invitation_confirm"
 
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "invalid_auth"
 
-    async def test_connection_error_shows_error(self):
-        flow = self._flow_with_reauth_entry()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError)
+# --- invitation confirm step -------------------------------------------------
 
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_reauth_confirm(self._submit())
 
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
+async def test_invitation_confirm_weak_password_errors(hass: HomeAssistant) -> None:
+    """A password that doesn't match the policy shows an invalid_password error."""
+    result = await _advance_to_invitation_confirm(hass)
 
-    async def test_missing_system_id_shows_cannot_connect(self):
-        flow = self._flow_with_reauth_entry()
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**CONFIRM_INPUT, CONF_PASSWORD: "weak"}
+    )
 
-        with patch("glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api):
-            await flow.async_step_reauth_confirm(self._submit())
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_password"}
 
-        errors = flow.async_show_form.call_args[1]["errors"]
-        assert errors["base"] == "cannot_connect"
-        flow._abort_if_unique_id_mismatch.assert_not_called()
 
-    async def test_uses_submitted_host_and_username(self):
-        flow = self._flow_with_reauth_entry()
-        flow.async_update_reload_and_abort = MagicMock(return_value={"type": "abort"})
-        mock_api = AsyncMock()
-        mock_api.get_access_points = AsyncMock(return_value=[])
-        mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
+async def test_invitation_confirm_success_creates_entry(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """Setting the password and fetching system info creates the entry."""
+    result = await _advance_to_invitation_confirm(hass)
+    mock_api.get_system_info = AsyncMock(
+        return_value={"id": "SYS-API", "name": "Palazzo Rossi"}
+    )
 
-        with patch(
-            "glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
-        ) as mock_cls:
-            await flow.async_step_reauth_confirm(
-                self._submit(host="https://new.example.com", username="new@example.com")
-            )
+    with (
+        _patch_api(mock_api),
+        patch(
+            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            new=AsyncMock(),
+        ) as mock_setpw,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CONFIRM_INPUT
+        )
+        await hass.async_block_till_done()
 
-        args = mock_cls.call_args[0]
-        assert args[1] == "https://new.example.com"
-        assert args[2] == "new@example.com"
-        assert args[3] == "new_password"
+    mock_setpw.assert_awaited_once()
+    _, host, token, password = mock_setpw.await_args.args
+    assert host == "instance.example.com"
+    assert token == "TOK123"
+    assert password == "Secure1!"
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Palazzo Rossi"
+    assert result["data"] == CONFIRM_INPUT
+    assert result["result"].unique_id == "SYS-API"
 
-    async def test_form_schema_prefills_host_and_username(self):
-        flow = self._flow_with_reauth_entry()
-        await flow.async_step_reauth_confirm(None)
-        schema = flow.async_show_form.call_args[1]["data_schema"]
-        defaults = {str(k): k.default() for k in schema.schema if k.default is not vol.UNDEFINED}
-        assert defaults["host"] == "https://example.com"
-        assert defaults["username"] == "user@example.com"
+
+async def test_invitation_confirm_falls_back_to_invitation_system_id(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """If get_system_info fails we still create the entry using the invitation's id."""
+    result = await _advance_to_invitation_confirm(hass)
+    mock_api.get_system_info = AsyncMock(side_effect=GlutzConnectionError)
+
+    with (
+        _patch_api(mock_api),
+        patch(
+            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            new=AsyncMock(),
+        ),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CONFIRM_INPUT
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Glutz eAccess"
+    assert result["result"].unique_id == "SYS123"
+
+
+async def test_invitation_confirm_no_system_id_errors_cannot_connect(
+    hass: HomeAssistant, mock_api: AsyncMock
+) -> None:
+    """No system id (invitation lacks it and API fails) blocks entry creation."""
+    invite_no_sys = INVITE_URL.replace("systemid=SYS123&", "")
+    result = await _start_step(hass, "invitation")
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        return_value="instance.example.com",
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"invite_url": invite_no_sys}
+        )
+
+    mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
+    with (
+        patch(
+            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            new=AsyncMock(),
+        ),
+        patch(
+            "custom_components.glutz_eaccess.config_flow.GlutzAPI",
+            return_value=mock_api,
+        ),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CONFIRM_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_invitation_confirm_set_password_errors_map_to_form_errors(
+    hass: HomeAssistant, error, expected
+) -> None:
+    """Errors while setting the new password surface as form errors."""
+    result = await _advance_to_invitation_confirm(hass)
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.set_new_password",
+        side_effect=error,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], CONFIRM_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": expected}
+
+
+# --- reauth ------------------------------------------------------------------
+
+
+@pytest.fixture
+def reauth_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a configured entry to drive reauth tests from."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="SYS1",
+        data={
+            CONF_HOST: "https://example.com",
+            CONF_USERNAME: "user@example.com",
+            CONF_PASSWORD: "old_password",
+        },
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+async def test_reauth_shows_confirm_form(
+    hass: HomeAssistant, reauth_entry: MockConfigEntry
+) -> None:
+    """Entry point for reauth surfaces the confirm form."""
+    result = await reauth_entry.start_reauth_flow(hass)
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "reauth_confirm"
+
+
+async def test_reauth_success_updates_and_aborts(
+    hass: HomeAssistant, reauth_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """A successful reauth updates the entry data and aborts with reauth_successful."""
+    result = await reauth_entry.start_reauth_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
+
+    with _patch_api(mock_api):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert reauth_entry.data == REAUTH_INPUT
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_reauth_api_errors_map_to_form_errors(
+    hass: HomeAssistant,
+    reauth_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    error,
+    expected,
+) -> None:
+    """API errors on reauth stay on the form with a recoverable error."""
+    result = await reauth_entry.start_reauth_flow(hass)
+    mock_api.get_access_points = AsyncMock(side_effect=error)
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": expected}
+
+
+async def test_reauth_missing_system_id_errors_cannot_connect(
+    hass: HomeAssistant, reauth_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """Reauth cannot succeed without a system id — show cannot_connect."""
+    result = await reauth_entry.start_reauth_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_reauth_wrong_account_aborts(
+    hass: HomeAssistant, reauth_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """Logging in against a different system id aborts with wrong_account."""
+    result = await reauth_entry.start_reauth_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"id": "DIFFERENT_SYSTEM"})
+
+    with patch(
+        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "wrong_account"
+
+
+async def test_reauth_confirm_form_prefills_host_and_username(
+    hass: HomeAssistant, reauth_entry: MockConfigEntry
+) -> None:
+    """Reauth form prefills host and username from the existing entry."""
+    result = await reauth_entry.start_reauth_flow(hass)
+
+    defaults = {
+        str(key): key.default()
+        for key in result["data_schema"].schema
+        if key.default is not vol.UNDEFINED
+    }
+    assert defaults[CONF_HOST] == "https://example.com"
+    assert defaults[CONF_USERNAME] == "user@example.com"

@@ -97,7 +97,9 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
     async def async_lock(self, **kwargs: Any) -> None:
         """Force-lock the door via the API and cancel any pending auto-relock."""
         try:
-            success = await self.coordinator.api.close_access_point(self._access_point_id)
+            success = await self.coordinator.api.close_access_point(
+                self._access_point_id
+            )
         except GlutzAuthError as err:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
@@ -117,6 +119,11 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
             self._relock_task = None
         self._attr_is_locked = True
         self.async_write_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._relock_task:
+            self._relock_task.cancel()
+            self._relock_task = None
 
     async def _relock(self) -> None:
         await asyncio.sleep(UNLOCK_DURATION)

@@ -1,124 +1,71 @@
+"""Tests for the Glutz eAccess integration setup/unload."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-from glutz_eaccess import async_setup_entry, async_unload_entry
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-ENTRY_ID = "test_entry_id"
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 
-ENTRY_DATA = {
-    "host": "https://example.com",
-    "username": "user",
-    "password": "secret",
-}
+from custom_components.glutz_eaccess.const import DOMAIN
 
 
-def _make_hass():
-    hass = MagicMock()
-    hass.config.language = "en"
-    hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
-    hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
-    return hass
+async def test_setup_entry_loads(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Entry reaches LOADED state when the API responds normally."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert mock_config_entry.runtime_data is not None
 
 
-def _make_entry():
-    entry = MagicMock()
-    entry.entry_id = ENTRY_ID
-    entry.data = ENTRY_DATA
-    entry.runtime_data = None
-    return entry
+async def test_setup_entry_connection_error_triggers_retry(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Connection error during first refresh lands in SETUP_RETRY."""
+    mock_api.get_access_points = AsyncMock(side_effect=GlutzConnectionError("boom"))
+
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
-class TestAsyncSetupEntry:
-    async def test_stores_coordinator_in_runtime_data(self):
-        hass = _make_hass()
-        entry = _make_entry()
-        mock_coordinator = AsyncMock()
+async def test_setup_entry_auth_error_triggers_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Auth error during first refresh lands in SETUP_ERROR and starts reauth."""
+    mock_api.get_access_points = AsyncMock(side_effect=GlutzAuthError("bad"))
 
-        with patch("glutz_eaccess.__init__.GlutzAPI"), patch(
-            "glutz_eaccess.__init__.GlutzCoordinator", return_value=mock_coordinator
-        ):
-            result = await async_setup_entry(hass, entry)
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-        assert result is True
-        assert entry.runtime_data is mock_coordinator
-
-    async def test_calls_first_refresh(self):
-        hass = _make_hass()
-        entry = _make_entry()
-        mock_coordinator = AsyncMock()
-
-        with patch("glutz_eaccess.__init__.GlutzAPI"), patch(
-            "glutz_eaccess.__init__.GlutzCoordinator", return_value=mock_coordinator
-        ):
-            await async_setup_entry(hass, entry)
-
-        mock_coordinator.async_config_entry_first_refresh.assert_awaited_once()
-
-    async def test_forwards_platform_setup(self):
-        hass = _make_hass()
-        entry = _make_entry()
-
-        with patch("glutz_eaccess.__init__.GlutzAPI"), patch(
-            "glutz_eaccess.__init__.GlutzCoordinator", return_value=AsyncMock()
-        ):
-            await async_setup_entry(hass, entry)
-
-        hass.config_entries.async_forward_entry_setups.assert_awaited_once()
-
-    async def test_api_created_with_correct_args(self):
-        hass = _make_hass()
-        entry = _make_entry()
-
-        with patch("glutz_eaccess.__init__.GlutzAPI") as mock_api_cls, patch(
-            "glutz_eaccess.__init__.GlutzCoordinator", return_value=AsyncMock()
-        ):
-            await async_setup_entry(hass, entry)
-
-        mock_api_cls.assert_called_once_with(
-            hass,
-            "https://example.com",
-            "user",
-            "secret",
-            language="en",
-        )
-
-    async def test_first_refresh_failure_propagates(self):
-        hass = _make_hass()
-        entry = _make_entry()
-        mock_coordinator = AsyncMock()
-        mock_coordinator.async_config_entry_first_refresh = AsyncMock(
-            side_effect=RuntimeError("boom")
-        )
-
-        with patch("glutz_eaccess.__init__.GlutzAPI"), patch(
-            "glutz_eaccess.__init__.GlutzCoordinator", return_value=mock_coordinator
-        ):
-            try:
-                await async_setup_entry(hass, entry)
-            except RuntimeError:
-                pass
-            else:
-                raise AssertionError("Expected RuntimeError")
-
-        hass.config_entries.async_forward_entry_setups.assert_not_awaited()
+    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert any(f["context"].get("source") == "reauth" for f in flows)
 
 
-class TestAsyncUnloadEntry:
-    async def test_delegates_to_unload_platforms(self):
-        hass = _make_hass()
-        entry = _make_entry()
+async def test_unload_entry(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Unloading a loaded entry transitions it to NOT_LOADED."""
+    await setup_integration(hass, mock_config_entry, mock_api)
 
-        result = await async_unload_entry(hass, entry)
+    with patch("custom_components.glutz_eaccess.GlutzAPI", return_value=mock_api):
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
-        assert result is True
-        hass.config_entries.async_unload_platforms.assert_awaited_once()
-
-    async def test_returns_false_when_unload_fails(self):
-        hass = _make_hass()
-        hass.config_entries.async_unload_platforms = AsyncMock(return_value=False)
-        entry = _make_entry()
-
-        result = await async_unload_entry(hass, entry)
-
-        assert result is False
+    assert mock_config_entry.state is ConfigEntryState.NOT_LOADED

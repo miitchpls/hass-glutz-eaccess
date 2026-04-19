@@ -8,6 +8,5 @@
   "codeowners": ["@miitchpls"],
   "iot_class": "cloud_polling",
   "integration_type": "hub",
-  "issue_tracker": "https://github.com/miitchpls/hass-glutz-eaccess/issues",
-  "quality_scale": "bronze"
+  "issue_tracker": "https://github.com/miitchpls/hass-glutz-eaccess/issues"
 }

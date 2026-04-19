@@ -21,6 +21,8 @@ type GlutzConfigEntry = ConfigEntry["GlutzCoordinator"]
 class GlutzCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Polls Glutz access points and exposes them keyed by accessPointId."""
 
+    config_entry: GlutzConfigEntry
+
     def __init__(
         self,
         hass: HomeAssistant,
