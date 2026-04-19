@@ -51,7 +51,8 @@
     },
     "abort": {
       "already_configured": "Diese Glutz-Instanz ist bereits konfiguriert.",
-      "reauth_successful": "Die erneute Anmeldung war erfolgreich."
+      "reauth_successful": "Die erneute Anmeldung war erfolgreich.",
+      "wrong_account": "Die Zugangsdaten gehören zu einem anderen Glutz-System als dem, das neu authentifiziert wird."
     }
   }
 }

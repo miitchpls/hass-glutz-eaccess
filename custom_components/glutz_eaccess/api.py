@@ -53,12 +53,16 @@ def parse_invitation(url: str) -> dict[str, str]:
     if not cloud_host or not system_path:
         raise ValueError("Missing cloud host or system path")
 
-    return {
+    result = {
         "cloud_host": cloud_host,
         "system_path": system_path,
         "email": email,
         "token": token,
     }
+    system_id = query.get("systemid", [None])[0]
+    if system_id:
+        result["system_id"] = system_id
+    return result
 
 
 async def resolve_instance_host(hass: HomeAssistant, cloud_host: str, system_path: str) -> str:
@@ -145,13 +149,23 @@ class GlutzAPI:
         result = await self._rpc("eAccess.getAccessPointsRelatedToLoggedInUser", [])
         return cast(list[dict[str, Any]], result["accessPoints"])
 
-    async def get_system_name(self) -> str | None:
-        """Return the building/system name, or None if not provided by the API."""
+    async def get_system_info(self) -> dict[str, str]:
+        """Return the system info (id, name) for the logged-in user's instance.
+
+        The systemid uniquely identifies a Glutz eAccess installation and is
+        stable across credential/host changes — used as the ConfigEntry unique_id.
+        """
         result = await self._rpc("eAccess.getSystemInfoOfLoggedInUser", [])
-        if isinstance(result, dict):
-            name = result.get("name")
-            return name if isinstance(name, str) else None
-        return None
+        if not isinstance(result, dict):
+            raise GlutzConnectionError("Unexpected getSystemInfoOfLoggedInUser response")
+        info: dict[str, str] = {}
+        system_id = result.get("systemid")
+        if isinstance(system_id, str) and system_id:
+            info["id"] = system_id
+        name = result.get("name")
+        if isinstance(name, str) and name:
+            info["name"] = name
+        return info
 
     async def open_access_point(self, access_point_id: str) -> bool:
         """Open an access point for 3 seconds (action 2, hardware auto-relock)."""

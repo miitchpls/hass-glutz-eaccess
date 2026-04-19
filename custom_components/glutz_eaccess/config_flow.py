@@ -27,13 +27,13 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_TITLE = "Glutz eAccess"
 
 
-async def _safe_resolve_title(api: GlutzAPI) -> str:
+async def _resolve_system_info(api: GlutzAPI) -> dict[str, str]:
+    """Fetch system info, returning an empty dict on transient errors."""
     try:
-        name = await api.get_system_name()
+        return await api.get_system_info()
     except (GlutzAuthError, GlutzConnectionError) as err:
-        _LOGGER.warning("Could not fetch system name, using default title: %s", err)
-        return DEFAULT_TITLE
-    return name or DEFAULT_TITLE
+        _LOGGER.warning("Could not fetch system info: %s", err)
+        return {}
 
 
 def _is_valid_password(pwd: str) -> bool:
@@ -95,13 +95,6 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            for entry in self._async_current_entries():
-                if (
-                    entry.data.get(CONF_HOST) == user_input[CONF_HOST]
-                    and entry.data.get(CONF_USERNAME) == user_input[CONF_USERNAME]
-                ):
-                    return self.async_abort(reason="already_configured")
-
             api = GlutzAPI(
                 self.hass,
                 user_input[CONF_HOST],
@@ -110,14 +103,21 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             try:
                 await api.get_access_points()
-                name = await api.get_system_name()
-                return self.async_create_entry(
-                    title=name or DEFAULT_TITLE, data=user_input
-                )
+                info = await api.get_system_info()
             except GlutzAuthError:
                 errors["base"] = "invalid_auth"
             except GlutzConnectionError:
                 errors["base"] = "cannot_connect"
+            else:
+                system_id = info.get("id")
+                if not system_id:
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(system_id)
+                    self._abort_if_unique_id_configured()
+                    return self.async_create_entry(
+                        title=info.get("name") or DEFAULT_TITLE, data=user_input
+                    )
 
         return self.async_show_form(
             step_id="credentials", data_schema=STEP_CREDENTIALS_SCHEMA, errors=errors
@@ -146,6 +146,8 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "email": parsed["email"],
                         "token": parsed["token"],
                     }
+                    if system_id := parsed.get("system_id"):
+                        self._invitation["system_id"] = system_id
                     return await self.async_step_invitation_confirm()
 
         return self.async_show_form(
@@ -169,13 +171,6 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_password"
 
             if not errors:
-                for entry in self._async_current_entries():
-                    if (
-                        entry.data.get(CONF_HOST) == full_host
-                        and entry.data.get(CONF_USERNAME) == email
-                    ):
-                        return self.async_abort(reason="already_configured")
-
                 try:
                     await set_new_password(
                         self.hass,
@@ -190,15 +185,21 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 if not errors:
                     api = GlutzAPI(self.hass, full_host, email, password)
-                    title = await _safe_resolve_title(api)
-                    return self.async_create_entry(
-                        title=title,
-                        data={
-                            CONF_HOST: full_host,
-                            CONF_USERNAME: email,
-                            CONF_PASSWORD: password,
-                        },
-                    )
+                    info = await _resolve_system_info(api)
+                    system_id = info.get("id") or self._invitation.get("system_id")
+                    if not system_id:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        await self.async_set_unique_id(system_id)
+                        self._abort_if_unique_id_configured()
+                        return self.async_create_entry(
+                            title=info.get("name") or DEFAULT_TITLE,
+                            data={
+                                CONF_HOST: full_host,
+                                CONF_USERNAME: email,
+                                CONF_PASSWORD: password,
+                            },
+                        )
 
         return self.async_show_form(
             step_id="invitation_confirm",
@@ -226,19 +227,26 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             try:
                 await api.get_access_points()
+                info = await api.get_system_info()
             except GlutzAuthError:
                 errors["base"] = "invalid_auth"
             except GlutzConnectionError:
                 errors["base"] = "cannot_connect"
             else:
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data_updates={
-                        CONF_HOST: user_input[CONF_HOST],
-                        CONF_USERNAME: user_input[CONF_USERNAME],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                    },
-                )
+                system_id = info.get("id")
+                if not system_id:
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(system_id)
+                    self._abort_if_unique_id_mismatch(reason="wrong_account")
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        data_updates={
+                            CONF_HOST: user_input[CONF_HOST],
+                            CONF_USERNAME: user_input[CONF_USERNAME],
+                            CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        },
+                    )
 
         return self.async_show_form(
             step_id="reauth_confirm",

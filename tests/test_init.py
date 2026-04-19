@@ -76,7 +76,7 @@ class TestAsyncSetupEntry:
         hass = _make_hass()
         entry = _make_entry()
         mock_api = AsyncMock()
-        mock_api.get_system_name = AsyncMock(side_effect=GlutzAuthError)
+        mock_api.get_system_info = AsyncMock(side_effect=GlutzAuthError)
 
         with patch("glutz_eaccess.__init__.GlutzAPI", return_value=mock_api):
             with pytest.raises(ConfigEntryAuthFailed):
@@ -89,7 +89,7 @@ class TestAsyncSetupEntry:
         hass = _make_hass()
         entry = _make_entry()
         mock_api = AsyncMock()
-        mock_api.get_system_name = AsyncMock(side_effect=GlutzConnectionError("boom"))
+        mock_api.get_system_info = AsyncMock(side_effect=GlutzConnectionError("boom"))
 
         with patch("glutz_eaccess.__init__.GlutzAPI", return_value=mock_api):
             with pytest.raises(ConfigEntryNotReady):

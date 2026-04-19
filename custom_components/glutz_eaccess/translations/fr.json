@@ -51,7 +51,8 @@
     },
     "abort": {
       "already_configured": "Cette instance Glutz est déjà configurée.",
-      "reauth_successful": "La ré-authentification a réussi."
+      "reauth_successful": "La ré-authentification a réussi.",
+      "wrong_account": "Les identifiants appartiennent à un système Glutz différent de celui qui est ré-authentifié."
     }
   }
 }

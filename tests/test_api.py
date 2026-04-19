@@ -144,24 +144,31 @@ class TestGlutzAPIMethods:
             result = await api.close_access_point("ap-1")
         assert result is False
 
-    async def test_get_system_name_returns_name(self):
+    async def test_get_system_info_returns_id_and_name(self):
         session = _mock_post_session(
-            200, json_body={"result": {"name": "Palazzo Rossi", "id": "SYS1"}}
+            200, json_body={"result": {"name": "Palazzo Rossi", "systemid": "SYS1"}}
         )
         with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
             api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
-            result = await api.get_system_name()
-        assert result == "Palazzo Rossi"
+            result = await api.get_system_info()
+        assert result == {"id": "SYS1", "name": "Palazzo Rossi"}
         payload = session.post.call_args[1]["json"]
         assert payload["method"] == "eAccess.getSystemInfoOfLoggedInUser"
         assert payload["params"] == []
 
-    async def test_get_system_name_returns_none_when_missing(self):
-        session = _mock_post_session(200, json_body={"result": {"id": "SYS1"}})
+    async def test_get_system_info_omits_missing_name(self):
+        session = _mock_post_session(200, json_body={"result": {"systemid": "SYS1"}})
         with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
             api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
-            result = await api.get_system_name()
-        assert result is None
+            result = await api.get_system_info()
+        assert result == {"id": "SYS1"}
+
+    async def test_get_system_info_omits_missing_id(self):
+        session = _mock_post_session(200, json_body={"result": {"name": "Palazzo Rossi"}})
+        with patch("glutz_eaccess.api.async_get_clientsession", return_value=session):
+            api = GlutzAPI(MagicMock(), "https://example.com", "user", "pass")
+            result = await api.get_system_info()
+        assert result == {"name": "Palazzo Rossi"}
 
 
 class TestParseInvitation:
@@ -172,6 +179,7 @@ class TestParseInvitation:
             "system_path": "building-name",
             "email": "user@example.com",
             "token": "TOK123",
+            "system_id": "SYS123",
         }
 
     def test_mobile_deep_link(self):
@@ -184,7 +192,15 @@ class TestParseInvitation:
             "system_path": "lugano-parco-brentani",
             "email": "user@example.com",
             "token": "TOK123",
+            "system_id": "5951.4109",
         }
+
+    def test_missing_systemid_is_optional(self):
+        result = parse_invitation(
+            "https://eaccess.ac.glutz.com/invite///cloud.example.com/bar"
+            "?email=a%40b.com&token=T"
+        )
+        assert "system_id" not in result
 
     def test_missing_invite_prefix(self):
         with pytest.raises(ValueError):

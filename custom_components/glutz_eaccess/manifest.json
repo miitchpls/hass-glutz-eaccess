@@ -1,6 +1,7 @@
 {
   "domain": "glutz_eaccess",
   "name": "Glutz eAccess",
+  "version": "0.1.0",
   "documentation": "https://github.com/miitchpls/hass-glutz-eaccess",
   "config_flow": true,
   "requirements": [],

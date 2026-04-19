@@ -20,7 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         language=hass.config.language,
     )
     try:
-        await api.get_system_name()
+        await api.get_system_info()
     except GlutzAuthError as err:
         raise ConfigEntryAuthFailed("Invalid credentials") from err
     except GlutzConnectionError as err:
