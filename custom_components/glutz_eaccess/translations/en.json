@@ -9,6 +9,12 @@
     "open_access_point_failed": {
       "message": "Failed to open access point {access_point_id}."
     },
+    "hold_open_access_point_error": {
+      "message": "Error holding open access point {access_point_id}."
+    },
+    "hold_open_access_point_failed": {
+      "message": "Failed to hold open access point {access_point_id}."
+    },
     "close_access_point_error": {
       "message": "Error locking access point {access_point_id}."
     },

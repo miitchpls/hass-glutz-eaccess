@@ -85,6 +85,7 @@ def mock_api() -> AsyncMock:
     """Return a mocked `GlutzAPI` instance with sensible defaults."""
     api = AsyncMock()
     api.open_access_point = AsyncMock(return_value=True)
+    api.hold_open_access_point = AsyncMock(return_value=True)
     api.close_access_point = AsyncMock(return_value=True)
     api.get_access_points = AsyncMock(return_value=list(MOCK_ACCESS_POINTS))
     api.get_system_info = AsyncMock(return_value={"id": "SYS1", "name": "Palazzo"})

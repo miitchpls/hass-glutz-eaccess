@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from homeassistant.components.lock import LockEntity
+from homeassistant.components.lock import LockEntity, LockEntityFeature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
@@ -42,6 +42,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
     _attr_has_entity_name = True
     _attr_assumed_state = True
     _attr_name = None
+    _attr_supported_features = LockEntityFeature.OPEN
 
     def __init__(
         self,
@@ -99,6 +100,36 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         if self._relock_task:
             self._relock_task.cancel()
         self._relock_task = self.hass.async_create_task(self._relock())
+
+    async def async_open(self, **kwargs: Any) -> None:
+        """Hold the door open indefinitely via the API and cancel any pending auto-relock."""
+        try:
+            success = await self.coordinator.api.hold_open_access_point(self._access_point_id)
+        except GlutzAuthError as err:
+            self.coordinator.config_entry.async_start_reauth(self.hass)
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="auth_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
+            ) from err
+        except GlutzConnectionError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="hold_open_access_point_error",
+                translation_placeholders={"access_point_id": self._access_point_id},
+            ) from err
+
+        if not success:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="hold_open_access_point_failed",
+                translation_placeholders={"access_point_id": self._access_point_id},
+            )
+        if self._relock_task:
+            self._relock_task.cancel()
+            self._relock_task = None
+        self._attr_is_locked = False
+        self.async_write_ha_state()
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Force-lock the door via the API and cancel any pending auto-relock."""

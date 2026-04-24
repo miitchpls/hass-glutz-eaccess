@@ -7,6 +7,7 @@ import pytest
 from homeassistant.components.lock import (
     DOMAIN as LOCK_DOMAIN,
     SERVICE_LOCK,
+    SERVICE_OPEN,
     SERVICE_UNLOCK,
 )
 from homeassistant.const import (
@@ -174,6 +175,92 @@ async def test_lock_api_returns_false_raises(
     assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
 
 
+async def test_open_calls_api_and_updates_state(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """The open service calls hold_open and flips the state to unlocked without scheduling a relock."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
+
+    mock_api.hold_open_access_point.assert_awaited_once_with("ap-1")
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
+
+
+async def test_open_does_not_auto_relock(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    freezer,
+) -> None:
+    """After open, the door stays unlocked even past UNLOCK_DURATION."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
+
+    freezer.tick(UNLOCK_DURATION + 1)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
+
+
+async def test_open_cancels_pending_auto_relock(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+    freezer,
+) -> None:
+    """Open while a relock is pending cancels it."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    await _call_service(hass, SERVICE_UNLOCK, MAIN_DOOR)
+    await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
+
+    freezer.tick(UNLOCK_DURATION + 1)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_UNLOCKED
+
+
+async def test_open_connection_error_raises_and_preserves_state(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Transient connection error on open surfaces as HomeAssistantError; state stays locked."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    mock_api.hold_open_access_point = AsyncMock(side_effect=GlutzConnectionError("boom"))
+
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
+
+
+async def test_open_api_returns_false_raises(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """When hold_open_access_point returns False we raise without flipping state."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    mock_api.hold_open_access_point = AsyncMock(return_value=False)
+
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
+
+    assert hass.states.get(MAIN_DOOR).state == STATE_LOCKED
+
+
 @pytest.mark.parametrize("service", [SERVICE_UNLOCK, SERVICE_LOCK])
 async def test_auth_error_starts_reauth(
     hass: HomeAssistant,
@@ -189,6 +276,23 @@ async def test_auth_error_starts_reauth(
 
     with pytest.raises(HomeAssistantError):
         await _call_service(hass, service, MAIN_DOOR)
+
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert any(f["context"].get("source") == "reauth" for f in flows)
+
+
+async def test_open_auth_error_starts_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Auth failure on open triggers a reauth flow."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+    mock_api.hold_open_access_point = AsyncMock(side_effect=GlutzAuthError("nope"))
+
+    with pytest.raises(HomeAssistantError):
+        await _call_service(hass, SERVICE_OPEN, MAIN_DOOR)
 
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert any(f["context"].get("source") == "reauth" for f in flows)

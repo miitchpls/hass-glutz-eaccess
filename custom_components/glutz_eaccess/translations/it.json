@@ -9,6 +9,12 @@
     "open_access_point_failed": {
       "message": "Impossibile aprire il punto di accesso {access_point_id}."
     },
+    "hold_open_access_point_error": {
+      "message": "Errore durante il mantenimento aperto del punto di accesso {access_point_id}."
+    },
+    "hold_open_access_point_failed": {
+      "message": "Impossibile mantenere aperto il punto di accesso {access_point_id}."
+    },
     "close_access_point_error": {
       "message": "Errore durante la chiusura del punto di accesso {access_point_id}."
     },
