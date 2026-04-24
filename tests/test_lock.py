@@ -24,9 +24,9 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
-from custom_components.glutz_eaccess.const import DOMAIN
-from custom_components.glutz_eaccess.coordinator import SCAN_INTERVAL
-from custom_components.glutz_eaccess.lock import UNLOCK_DURATION
+from homeassistant.components.glutz_eaccess.const import DOMAIN
+from homeassistant.components.glutz_eaccess.coordinator import SCAN_INTERVAL
+from homeassistant.components.glutz_eaccess.lock import UNLOCK_DURATION
 
 MAIN_DOOR = "lock.main_door"
 FALLBACK_DOOR = "lock.door_ap_2"

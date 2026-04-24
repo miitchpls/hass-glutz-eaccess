@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 
-from custom_components.glutz_eaccess.const import DOMAIN
+from homeassistant.components.glutz_eaccess.const import DOMAIN
 
 
 async def test_setup_entry_loads(
@@ -64,7 +64,7 @@ async def test_unload_entry(
     """Unloading a loaded entry transitions it to NOT_LOADED."""
     await setup_integration(hass, mock_config_entry, mock_api)
 
-    with patch("custom_components.glutz_eaccess.GlutzAPI", return_value=mock_api):
+    with patch("homeassistant.components.glutz_eaccess.GlutzAPI", return_value=mock_api):
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 

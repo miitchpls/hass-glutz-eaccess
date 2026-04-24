@@ -13,8 +13,8 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
-from custom_components.glutz_eaccess.config_flow import _is_valid_password
-from custom_components.glutz_eaccess.const import DOMAIN
+from homeassistant.components.glutz_eaccess.config_flow import _is_valid_password
+from homeassistant.components.glutz_eaccess.const import DOMAIN
 
 CREDENTIALS_INPUT = {
     CONF_HOST: "https://example.com",
@@ -51,9 +51,9 @@ def _patch_api(api: AsyncMock):
     """
     with (
         patch(
-            "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=api
+            "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=api
         ),
-        patch("custom_components.glutz_eaccess.GlutzAPI", return_value=api),
+        patch("homeassistant.components.glutz_eaccess.GlutzAPI", return_value=api),
     ):
         yield
 
@@ -74,7 +74,7 @@ async def _start_step(hass: HomeAssistant, step: str) -> dict:
 async def _advance_to_invitation_confirm(hass: HomeAssistant) -> dict:
     result = await _start_step(hass, "invitation")
     with patch(
-        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
         return_value="instance.example.com",
     ):
         return await hass.config_entries.flow.async_configure(
@@ -175,7 +175,7 @@ async def test_credentials_missing_system_id_errors_cannot_connect(
     mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], CREDENTIALS_INPUT
@@ -200,7 +200,7 @@ async def test_credentials_api_errors_map_to_form_errors(
     mock_api.get_access_points = AsyncMock(side_effect=error)
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], CREDENTIALS_INPUT
@@ -220,7 +220,7 @@ async def test_credentials_aborts_when_already_configured(
     result = await _start_step(hass, "credentials")
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], CREDENTIALS_INPUT
@@ -259,7 +259,7 @@ async def test_invitation_resolve_failure_errors_cannot_connect(
     result = await _start_step(hass, "invitation")
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
         side_effect=GlutzConnectionError,
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -305,7 +305,7 @@ async def test_invitation_confirm_success_creates_entry(
     with (
         _patch_api(mock_api),
         patch(
-            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
             new=AsyncMock(),
         ) as mock_setpw,
     ):
@@ -335,7 +335,7 @@ async def test_invitation_confirm_falls_back_to_invitation_system_id(
     with (
         _patch_api(mock_api),
         patch(
-            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
             new=AsyncMock(),
         ),
     ):
@@ -356,7 +356,7 @@ async def test_invitation_confirm_no_system_id_errors_cannot_connect(
     invite_no_sys = INVITE_URL.replace("systemid=SYS123&", "")
     result = await _start_step(hass, "invitation")
     with patch(
-        "custom_components.glutz_eaccess.config_flow.resolve_instance_host",
+        "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
         return_value="instance.example.com",
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -366,11 +366,11 @@ async def test_invitation_confirm_no_system_id_errors_cannot_connect(
     mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
     with (
         patch(
-            "custom_components.glutz_eaccess.config_flow.set_new_password",
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
             new=AsyncMock(),
         ),
         patch(
-            "custom_components.glutz_eaccess.config_flow.GlutzAPI",
+            "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI",
             return_value=mock_api,
         ),
     ):
@@ -396,7 +396,7 @@ async def test_invitation_confirm_set_password_errors_map_to_form_errors(
     result = await _advance_to_invitation_confirm(hass)
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.set_new_password",
+        "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
         side_effect=error,
     ):
         result = await hass.config_entries.flow.async_configure(
@@ -473,7 +473,7 @@ async def test_reauth_api_errors_map_to_form_errors(
     mock_api.get_access_points = AsyncMock(side_effect=error)
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], REAUTH_INPUT
@@ -491,7 +491,7 @@ async def test_reauth_missing_system_id_errors_cannot_connect(
     mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], REAUTH_INPUT
@@ -509,7 +509,7 @@ async def test_reauth_wrong_account_aborts(
     mock_api.get_system_info = AsyncMock(return_value={"id": "DIFFERENT_SYSTEM"})
 
     with patch(
-        "custom_components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], REAUTH_INPUT

@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import os
-import sys
 from collections.abc import Callable, Coroutine, Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import homeassistant.components as _hac
 import pytest
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -14,21 +14,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# `pytest-homeassistant-custom-component` pins `custom_components.__path__` to
-# its own testing_config dir; append ours so `custom_components.glutz_eaccess`
-# resolves via normal imports. This shim disappears once the integration is
-# merged into HA core and lives under `homeassistant/components/`.
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
+# Extend homeassistant.components.__path__ so that the local
+# homeassistant/components/glutz_eaccess package is importable as
+# homeassistant.components.glutz_eaccess alongside the installed HA components.
+_LOCAL_COMPONENTS = os.path.join(_PROJECT_ROOT, "homeassistant", "components")
+if _LOCAL_COMPONENTS not in list(_hac.__path__):
+    _hac.__path__.append(_LOCAL_COMPONENTS)
 
-import custom_components  # noqa: E402
-
-_OUR_CUSTOM = os.path.join(_PROJECT_ROOT, "custom_components")
-if _OUR_CUSTOM not in list(custom_components.__path__):
-    custom_components.__path__.append(_OUR_CUSTOM)
-
-
-from custom_components.glutz_eaccess.const import DOMAIN  # noqa: E402
+from homeassistant.components.glutz_eaccess.const import DOMAIN  # noqa: E402
 
 MOCK_ENTRY_DATA = {
     CONF_HOST: "https://example.com",
@@ -40,14 +33,6 @@ MOCK_ACCESS_POINTS = [
     {"accessPointId": "ap-1", "location": ["Building A", "Floor 1", "Main Door"]},
     {"accessPointId": "ap-2", "location": []},
 ]
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(
-    enable_custom_integrations: None,
-) -> Generator[None, None, None]:
-    """Auto-enable custom integration discovery for every test."""
-    yield
 
 
 @pytest.fixture(autouse=True)
@@ -102,7 +87,7 @@ def setup_integration() -> Callable[
         hass: HomeAssistant, entry: MockConfigEntry, api: AsyncMock
     ) -> None:
         entry.add_to_hass(hass)
-        with patch("custom_components.glutz_eaccess.GlutzAPI", return_value=api):
+        with patch("homeassistant.components.glutz_eaccess.GlutzAPI", return_value=api):
             await hass.config_entries.async_setup(entry.entry_id)
             await hass.async_block_till_done()
 
