@@ -213,6 +213,50 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        entry = self._get_reconfigure_entry()
+
+        if user_input is not None:
+            api = GlutzAPI(
+                async_get_clientsession(self.hass),
+                user_input[CONF_HOST],
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+            )
+            try:
+                await api.get_access_points()
+                info = await api.get_system_info()
+            except GlutzAuthError:
+                errors["base"] = "invalid_auth"
+            except GlutzConnectionError:
+                errors["base"] = "cannot_connect"
+            else:
+                system_id = info.get("id")
+                if not system_id:
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(system_id)
+                    self._abort_if_unique_id_mismatch(reason="wrong_account")
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        data_updates={
+                            CONF_HOST: user_input[CONF_HOST],
+                            CONF_USERNAME: user_input[CONF_USERNAME],
+                            CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        },
+                    )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=_reauth_confirm_schema(
+                entry.data[CONF_HOST], entry.data[CONF_USERNAME]
+            ),
+            errors=errors,
+        )
+
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
     ) -> ConfigFlowResult:

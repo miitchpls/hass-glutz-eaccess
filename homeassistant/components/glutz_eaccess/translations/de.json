@@ -64,6 +64,15 @@
           "username": "Benutzername oder E-Mail",
           "password": "Passwort"
         }
+      },
+      "reconfigure": {
+        "title": "Glutz eAccess-Verbindung aktualisieren",
+        "description": "Aktualisiere die Serveradresse oder die Zugangsdaten für diese Glutz eAccess-Instanz.",
+        "data": {
+          "host": "Servername oder URL",
+          "username": "Benutzername oder E-Mail",
+          "password": "Passwort"
+        }
       }
     },
     "error": {
@@ -75,8 +84,9 @@
     "abort": {
       "already_configured": "Diese Glutz-Instanz ist bereits konfiguriert.",
       "reauth_successful": "Die erneute Anmeldung war erfolgreich.",
+      "reconfigure_successful": "Konfiguration erfolgreich aktualisiert.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten.",
-      "wrong_account": "Die Zugangsdaten gehören zu einem anderen Glutz-System als dem, das neu authentifiziert wird."
+      "wrong_account": "Die Zugangsdaten gehören zu einem anderen Glutz-System."
     }
   }
 }

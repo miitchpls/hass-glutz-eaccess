@@ -532,3 +532,130 @@ async def test_reauth_confirm_form_prefills_host_and_username(
     }
     assert defaults[CONF_HOST] == "https://example.com"
     assert defaults[CONF_USERNAME] == "user@example.com"
+
+
+# --- reconfigure ---------------------------------------------------------------
+
+
+@pytest.fixture
+def reconfigure_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a configured entry to drive reconfigure tests from."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="SYS1",
+        data={
+            CONF_HOST: "https://example.com",
+            CONF_USERNAME: "user@example.com",
+            CONF_PASSWORD: "old_password",
+        },
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+async def test_reconfigure_shows_form(
+    hass: HomeAssistant, reconfigure_entry: MockConfigEntry
+) -> None:
+    """Entry point for reconfigure surfaces the form."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+
+
+async def test_reconfigure_form_prefills_host_and_username(
+    hass: HomeAssistant, reconfigure_entry: MockConfigEntry
+) -> None:
+    """Reconfigure form prefills host and username from the existing entry."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+
+    defaults = {
+        str(key): key.default()
+        for key in result["data_schema"].schema
+        if key.default is not vol.UNDEFINED
+    }
+    assert defaults[CONF_HOST] == "https://example.com"
+    assert defaults[CONF_USERNAME] == "user@example.com"
+
+
+async def test_reconfigure_success_updates_and_aborts(
+    hass: HomeAssistant, reconfigure_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """A successful reconfigure updates the entry data and aborts with reconfigure_successful."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"id": "SYS1"})
+
+    with _patch_api(mock_api):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert reconfigure_entry.data == REAUTH_INPUT
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_reconfigure_api_errors_map_to_form_errors(
+    hass: HomeAssistant,
+    reconfigure_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    error,
+    expected,
+) -> None:
+    """API errors on reconfigure stay on the form with a recoverable error."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+    mock_api.get_access_points = AsyncMock(side_effect=error)
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": expected}
+
+
+async def test_reconfigure_missing_system_id_errors_cannot_connect(
+    hass: HomeAssistant, reconfigure_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """Reconfigure cannot succeed without a system id — show cannot_connect."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"name": "Palazzo"})
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_reconfigure_wrong_account_aborts(
+    hass: HomeAssistant, reconfigure_entry: MockConfigEntry, mock_api: AsyncMock
+) -> None:
+    """Reconfiguring with credentials for a different system aborts with wrong_account."""
+    result = await reconfigure_entry.start_reconfigure_flow(hass)
+    mock_api.get_system_info = AsyncMock(return_value={"id": "DIFFERENT_SYSTEM"})
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.GlutzAPI", return_value=mock_api
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], REAUTH_INPUT
+        )
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "wrong_account"

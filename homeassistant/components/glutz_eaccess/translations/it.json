@@ -64,6 +64,15 @@
           "username": "Nome utente o email",
           "password": "Password"
         }
+      },
+      "reconfigure": {
+        "title": "Aggiorna la connessione Glutz eAccess",
+        "description": "Aggiorna l'indirizzo del server o le credenziali per questa istanza Glutz eAccess.",
+        "data": {
+          "host": "Nome server o URL",
+          "username": "Nome utente o email",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -75,8 +84,9 @@
     "abort": {
       "already_configured": "Questa istanza Glutz è già configurata.",
       "reauth_successful": "Ri-autenticazione riuscita.",
+      "reconfigure_successful": "Configurazione aggiornata con successo.",
       "unknown": "Si è verificato un errore imprevisto.",
-      "wrong_account": "Le credenziali appartengono a un sistema Glutz diverso da quello che stai ri-autenticando."
+      "wrong_account": "Le credenziali appartengono a un sistema Glutz diverso."
     }
   }
 }
