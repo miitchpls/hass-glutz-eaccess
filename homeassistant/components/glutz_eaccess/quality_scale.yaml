@@ -1,0 +1,126 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: Integration does not register any custom actions.
+  appropriate-polling:
+    status: done
+    comment: >-
+      Polls every 5 minutes to keep the access point list up to date.
+      Lock state (locked/unlocked) cannot be read from the API and is
+      simulated via assumed state (async_assumed_state = True).
+  brands:
+    status: todo
+  common-modules:
+    status: done
+  config-flow:
+    status: done
+  config-flow-test-coverage:
+    status: done
+  dependency-transparency:
+    status: done
+  docs-actions:
+    status: exempt
+    comment: Integration does not provide any actions.
+  docs-high-level-description:
+    status: todo
+  docs-installation-instructions:
+    status: todo
+  docs-removal:
+    status: todo
+  entity-event-setup:
+    status: exempt
+    comment: Integration does not subscribe to events in async_added_to_hass.
+  entity-unique-id:
+    status: done
+  has-entity-name:
+    status: done
+  runtime-data:
+    status: done
+  test-before-configure:
+    status: done
+  test-before-setup:
+    status: done
+  unique-config-entry:
+    status: done
+
+  # Silver
+  action-exceptions:
+    status: done
+  config-entry-unloading:
+    status: done
+  docs-configuration-parameters:
+    status: todo
+  docs-installation-parameters:
+    status: todo
+  entity-unavailable:
+    status: done
+  integration-owner:
+    status: done
+  log-when-unavailable:
+    status: done
+  parallel-updates:
+    status: done
+  reauthentication-flow:
+    status: done
+  test-coverage:
+    status: done
+
+  # Gold
+  devices:
+    status: done
+  diagnostics:
+    status: done
+  discovery:
+    status: exempt
+    comment: The Glutz eAccess system does not support any discovery protocol.
+  discovery-update-info:
+    status: exempt
+    comment: The Glutz eAccess system does not support any discovery protocol.
+  docs-data-update:
+    status: todo
+  docs-known-limitations:
+    status: todo
+  docs-supported-devices:
+    status: todo
+  docs-supported-functions:
+    status: todo
+  docs-troubleshooting:
+    status: todo
+  docs-use-cases:
+    status: todo
+  dynamic-devices:
+    status: done
+  entity-category:
+    status: exempt
+    comment: All entities are primary lock entities.
+  entity-device-class:
+    status: exempt
+    comment: The lock platform does not use device classes.
+  entity-disabled-by-default:
+    status: exempt
+    comment: All entities represent physical doors and should be enabled by default.
+  entity-translations:
+    status: done
+  exception-translations:
+    status: done
+  icon-translations:
+    status: done
+  reconfiguration-flow:
+    status: done
+  repair-issues:
+    status: exempt
+    comment: >-
+      The current API does not expose battery status. If a low-battery flag
+      becomes available in a future API version, a repair issue should be raised
+      to prompt the user to recharge the lock.
+  stale-devices:
+    status: done
+
+  # Platinum
+  async-dependency:
+    status: done
+  inject-websession:
+    status: done
+  strict-typing:
+    status: done
