@@ -3,7 +3,7 @@
   "name": "Glutz eAccess",
   "documentation": "https://www.home-assistant.io/integrations/glutz_eaccess",
   "config_flow": true,
-  "requirements": ["pyglutz-eaccess==0.2.1"],
+  "requirements": ["pyglutz-eaccess==0.2.2"],
   "codeowners": ["@miitchpls"],
   "iot_class": "cloud_polling",
   "integration_type": "hub"
