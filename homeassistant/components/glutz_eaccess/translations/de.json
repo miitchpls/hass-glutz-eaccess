@@ -38,6 +38,9 @@
           "host": "Servername oder URL",
           "username": "Benutzername oder E-Mail",
           "password": "Passwort"
+        },
+        "data_description": {
+          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com"
         }
       },
       "invitation": {
@@ -45,6 +48,9 @@
         "description": "Füge den Einladungslink ein, den du per E-Mail erhalten hast.",
         "data": {
           "invite_url": "Einladungslink"
+        },
+        "data_description": {
+          "invite_url": "Der Einladungslink, der dir per E-Mail von Glutz zugeschickt wurde."
         }
       },
       "invitation_confirm": {
@@ -72,6 +78,9 @@
           "host": "Servername oder URL",
           "username": "Benutzername oder E-Mail",
           "password": "Passwort"
+        },
+        "data_description": {
+          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com"
         }
       }
     },
