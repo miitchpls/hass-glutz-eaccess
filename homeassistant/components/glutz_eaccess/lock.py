@@ -14,6 +14,8 @@ from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from .const import DOMAIN
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
 
+PARALLEL_UPDATES = 0
+
 # Duration in seconds to show the lock as unlocked before reverting to locked.
 # Matches the physical door's automatic re-lock time.
 UNLOCK_DURATION = 3
