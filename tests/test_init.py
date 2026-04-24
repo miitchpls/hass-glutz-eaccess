@@ -5,10 +5,12 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 
+from homeassistant.components.glutz_eaccess import async_remove_config_entry_device
 from homeassistant.components.glutz_eaccess.const import DOMAIN
 
 
@@ -69,3 +71,35 @@ async def test_unload_entry(
         await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_remove_config_entry_device_returns_false_for_active_access_point(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Active access point blocks device removal."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    device_reg = dr.async_get(hass)
+    device_entry = device_reg.async_get_device(identifiers={(DOMAIN, "ap-1")})
+
+    assert not await async_remove_config_entry_device(hass, mock_config_entry, device_entry)
+
+
+async def test_remove_config_entry_device_returns_true_for_stale_access_point(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_api: AsyncMock,
+    setup_integration,
+) -> None:
+    """Stale access point (absent from coordinator data) allows device removal."""
+    await setup_integration(hass, mock_config_entry, mock_api)
+
+    mock_config_entry.runtime_data.data = {}
+
+    device_reg = dr.async_get(hass)
+    device_entry = device_reg.async_get_device(identifiers={(DOMAIN, "ap-1")})
+
+    assert await async_remove_config_entry_device(hass, mock_config_entry, device_entry)
