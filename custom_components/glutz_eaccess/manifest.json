@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "documentation": "https://github.com/miitchpls/hass-glutz-eaccess",
   "config_flow": true,
-  "requirements": ["pyglutz-eaccess==0.1.0"],
+  "requirements": ["pyglutz-eaccess==0.2.1"],
   "codeowners": ["@miitchpls"],
   "iot_class": "cloud_polling",
   "integration_type": "hub",

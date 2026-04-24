@@ -1,2 +1,2 @@
 pytest-homeassistant-custom-component
--e ./packages/pyglutz_eaccess
+pyglutz-eaccess==0.2.1
