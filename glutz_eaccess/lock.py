@@ -1,7 +1,10 @@
+"""Lock platform for the Glutz eAccess integration."""
 from __future__ import annotations
 
 import asyncio
 from typing import Any
+
+from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 
 from homeassistant.components.lock import LockEntity, LockEntityFeature
 from homeassistant.core import HomeAssistant
@@ -10,14 +13,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 from .const import DOMAIN
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
 
 PARALLEL_UPDATES = 0
 
-# Duration in seconds to show the lock as unlocked before reverting to locked.
-# Matches the physical door's automatic re-lock time.
+# Matches the physical door's automatic re-lock time. The API exposes no
+# real lock state, so we simulate "unlocked" for this many seconds.
 UNLOCK_DURATION = 3
 
 
@@ -36,8 +38,8 @@ async def async_setup_entry(
 class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
     """Represents a Glutz access point as a Home Assistant lock entity.
 
-    Since the door has no state feedback (it re-locks automatically after
-    a few seconds), the state is simulated: unlocked for UNLOCK_DURATION
+    The door has no state feedback (it re-locks automatically after a few
+    seconds), so the state is simulated: unlocked for UNLOCK_DURATION
     seconds, then reverted to locked.
     """
 
@@ -52,6 +54,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         coordinator: GlutzCoordinator,
         access_point: dict[str, Any],
     ) -> None:
+        """Initialize the lock entity for a single access point."""
         super().__init__(coordinator)
         self._access_point_id: str = access_point["accessPointId"]
         location: list[str] = access_point.get("location", [])
@@ -64,10 +67,12 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
 
     @property
     def available(self) -> bool:
+        """Return whether the access point is still reported by the coordinator."""
         return super().available and self._access_point_id in self.coordinator.data
 
     @property
     def device_info(self) -> DeviceInfo:
+        """Return device info for the access point."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._access_point_id)},
             name=self._device_name,
@@ -75,7 +80,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         )
 
     async def async_unlock(self, **kwargs: Any) -> None:
-        """Unlock the door by calling the Glutz API, then revert state after UNLOCK_DURATION."""
+        """Unlock the door and schedule an automatic re-lock."""
         try:
             success = await self.coordinator.api.open_access_point(self._access_point_id)
         except GlutzAuthError as err:
@@ -105,7 +110,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         self._relock_task = self.hass.async_create_task(self._relock())
 
     async def async_open(self, **kwargs: Any) -> None:
-        """Hold the door open indefinitely via the API and cancel any pending auto-relock."""
+        """Hold the door open indefinitely and cancel any pending auto-relock."""
         try:
             success = await self.coordinator.api.hold_open_access_point(self._access_point_id)
         except GlutzAuthError as err:
@@ -135,7 +140,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         self.async_write_ha_state()
 
     async def async_lock(self, **kwargs: Any) -> None:
-        """Force-lock the door via the API and cancel any pending auto-relock."""
+        """Force-lock the door and cancel any pending auto-relock."""
         try:
             success = await self.coordinator.api.close_access_point(
                 self._access_point_id
@@ -167,11 +172,13 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
+        """Cancel a pending auto-relock when the entity is removed."""
         if self._relock_task:
             self._relock_task.cancel()
             self._relock_task = None
 
     async def _relock(self) -> None:
+        """Revert the entity to the locked state after UNLOCK_DURATION seconds."""
         await asyncio.sleep(UNLOCK_DURATION)
         self._relock_task = None
         self._attr_is_locked = True

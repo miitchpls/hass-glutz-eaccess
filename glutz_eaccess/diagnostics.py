@@ -1,3 +1,4 @@
+"""Diagnostics support for the Glutz eAccess integration."""
 from __future__ import annotations
 
 from typing import Any
@@ -14,6 +15,7 @@ _TO_REDACT = {CONF_PASSWORD}
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: GlutzConfigEntry
 ) -> dict[str, Any]:
+    """Return diagnostics for a config entry."""
     coordinator = entry.runtime_data
     return {
         "config_entry": async_redact_data(dict(entry.data), _TO_REDACT),

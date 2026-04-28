@@ -1,11 +1,13 @@
+"""The Glutz eAccess integration."""
 from __future__ import annotations
+
+from pyglutz_eaccess import GlutzAPI
 
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from pyglutz_eaccess import GlutzAPI
 from .const import DOMAIN
 from .coordinator import GlutzConfigEntry, GlutzCoordinator
 
@@ -13,6 +15,7 @@ PLATFORMS = [Platform.LOCK]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> bool:
+    """Set up Glutz eAccess from a config entry."""
     api = GlutzAPI(
         async_get_clientsession(hass),
         entry.data[CONF_HOST],
@@ -28,6 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> boo
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: GlutzConfigEntry) -> bool:
+    """Unload a Glutz eAccess config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
@@ -36,6 +40,7 @@ async def async_remove_config_entry_device(
     entry: GlutzConfigEntry,
     device_entry: dr.DeviceEntry,
 ) -> bool:
+    """Allow removal of a device whose access point no longer exists."""
     coordinator = entry.runtime_data
     return not any(
         identifier[1] in coordinator.data
