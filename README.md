@@ -2,25 +2,35 @@
 
 A [Home Assistant](https://www.home-assistant.io/) integration for the [Glutz eAccess](https://www.glutz.com/) cloud-based access control system. Control and monitor your Glutz eAccess doors directly from Home Assistant.
 
-> **Status:** this integration is being submitted for inclusion in Home Assistant core. Once merged, it will be available out of the box and this repository will be archived. In the meantime, it can be installed manually as a custom component (see below).
+> **Status:** this integration is being submitted for inclusion in Home Assistant core. Once merged, it will be available out of the box and this repository may be archived.  
+> Until then, a dedicated `custom-component` branch is available for manual installation.
 
-## Manual installation (until available in HA core)
+## Manual installation  (until available in HA core)
+
+This repository includes a dedicated branch for custom installation:
 
 1. Download or clone this repository.
-2. Copy the `homeassistant/components/glutz_eaccess/` folder into the `custom_components/` directory of your Home Assistant configuration:
+
+```bash
+git clone --branch custom-component --single-branch https://github.com/miitchpls/hass-glutz-eaccess.git
+```
+
+2. Copy the `glutz_eaccess/` folder into the `custom_components/` directory of your Home Assistant configuration:
    ```
    <config>/custom_components/glutz_eaccess/
    ```
-3. Open `custom_components/glutz_eaccess/manifest.json` and add a `version` field — Home Assistant requires it for custom components:
-   ```json
-   "version": "0.1.0"
-   ```
-4. Restart Home Assistant.
-5. Go to **Settings → Devices & Services → Add Integration**, search for **Glutz eAccess** and follow the setup wizard.
+3. Restart Home Assistant. 
+4. Go to **Settings → Devices & Services → Add Integration**, search for **Glutz eAccess** and follow the setup wizard.
 
 > **Note:** the `pyglutz-eaccess` Python dependency is installed automatically by Home Assistant on first start after installation.
 
-## Development
+## Repository branches
+
+- **main**  
+  Development branch targeting inclusion in Home Assistant Core.
+
+- **custom-component**  
+  Standalone branch for manual installation as a custom integration.
 
 ### Running the tests
 
