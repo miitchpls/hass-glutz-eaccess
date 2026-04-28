@@ -1,15 +1,16 @@
+"""Data update coordinator for the Glutz eAccess integration."""
 from __future__ import annotations
 
 import logging
 from datetime import timedelta
 from typing import Any
 
+from pyglutz_eaccess import GlutzAPI, GlutzAuthError, GlutzConnectionError
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
-from pyglutz_eaccess import GlutzAPI, GlutzAuthError, GlutzConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,8 +28,9 @@ class GlutzCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self,
         hass: HomeAssistant,
         api: GlutzAPI,
-        entry: ConfigEntry,
+        entry: GlutzConfigEntry,
     ) -> None:
+        """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
@@ -39,6 +41,7 @@ class GlutzCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.api = api
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+        """Fetch the current access points from the Glutz API."""
         try:
             access_points = await self.api.get_access_points()
         except GlutzAuthError as err:

@@ -1,3 +1,4 @@
+"""Config flow for the Glutz eAccess integration."""
 from __future__ import annotations
 
 import logging
@@ -6,10 +7,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import voluptuous as vol
-from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
 from pyglutz_eaccess import (
     GlutzAPI,
     GlutzAuthError,
@@ -18,6 +15,11 @@ from pyglutz_eaccess import (
     resolve_instance_host,
     set_new_password,
 )
+
+from homeassistant import config_entries
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
 from .const import DOMAIN
 
 if TYPE_CHECKING:
@@ -38,6 +40,7 @@ async def _resolve_system_info(api: GlutzAPI) -> dict[str, str]:
 
 
 def _is_valid_password(pwd: str) -> bool:
+    """Return True if the password meets the Glutz cloud password policy."""
     return (
         len(pwd) >= 8
         and any(c.isupper() for c in pwd)
@@ -57,7 +60,9 @@ STEP_CREDENTIALS_SCHEMA = vol.Schema(
 
 STEP_INVITATION_SCHEMA = vol.Schema({vol.Required("invite_url"): str})
 
+
 def _invitation_confirm_schema(host: str, email: str) -> vol.Schema:
+    """Build the invitation confirm schema with prefilled host and email."""
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=host): str,
@@ -68,6 +73,7 @@ def _invitation_confirm_schema(host: str, email: str) -> vol.Schema:
 
 
 def _reauth_confirm_schema(host: str, username: str) -> vol.Schema:
+    """Build the reauth/reconfigure schema with prefilled host and username."""
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=host): str,
@@ -78,14 +84,18 @@ def _reauth_confirm_schema(host: str, username: str) -> vol.Schema:
 
 
 class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Glutz eAccess."""
+
     VERSION = 1
 
     def __init__(self) -> None:
+        """Initialize the config flow."""
         self._invitation: dict[str, str] | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Show the menu offering credentials or invitation entry points."""
         return self.async_show_menu(
             step_id="user", menu_options=["credentials", "invitation"]
         )
@@ -93,6 +103,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_credentials(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle the credentials login step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -127,6 +138,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_invitation(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle the invitation URL step."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -160,6 +172,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_invitation_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle setting the password and creating the entry from an invitation."""
         if self._invitation is None:
             return self.async_abort(reason="unknown")
         errors: dict[str, str] = {}
@@ -216,6 +229,7 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Handle reconfiguration of an existing entry."""
         errors: dict[str, str] = {}
         entry = self._get_reconfigure_entry()
 
@@ -260,11 +274,13 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
     ) -> ConfigFlowResult:
+        """Start a reauth flow."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Confirm reauth and update the entry credentials."""
         errors: dict[str, str] = {}
         entry = self._get_reauth_entry()
 
