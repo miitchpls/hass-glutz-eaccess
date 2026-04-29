@@ -40,7 +40,9 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "Full URL of your Glutz eAccess server, e.g. https://cloud.eaccess.glutz.com"
+          "host": "Full URL of your Glutz eAccess server, e.g. https://cloud.eaccess.glutz.com",
+          "username": "The username or email address of your Glutz eAccess account.",
+          "password": "The password for your Glutz eAccess account."
         }
       },
       "invitation": {
@@ -60,6 +62,11 @@
           "host": "Server name or URL",
           "username": "Username or email",
           "password": "Password"
+        },
+        "data_description": {
+          "host": "[%key:component::glutz_eaccess::config::step::credentials::data_description::host%]",
+          "username": "[%key:component::glutz_eaccess::config::step::credentials::data_description::username%]",
+          "password": "[%key:component::glutz_eaccess::config::step::credentials::data_description::password%]"
         }
       },
       "reauth_confirm": {
@@ -69,6 +76,11 @@
           "host": "Server name or URL",
           "username": "Username or email",
           "password": "Password"
+        },
+        "data_description": {
+          "host": "[%key:component::glutz_eaccess::config::step::credentials::data_description::host%]",
+          "username": "[%key:component::glutz_eaccess::config::step::credentials::data_description::username%]",
+          "password": "[%key:component::glutz_eaccess::config::step::credentials::data_description::password%]"
         }
       },
       "reconfigure": {
@@ -80,7 +92,9 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "Full URL of your Glutz eAccess server, e.g. https://cloud.eaccess.glutz.com"
+          "host": "[%key:component::glutz_eaccess::config::step::credentials::data_description::host%]",
+          "username": "[%key:component::glutz_eaccess::config::step::credentials::data_description::username%]",
+          "password": "[%key:component::glutz_eaccess::config::step::credentials::data_description::password%]"
         }
       }
     },

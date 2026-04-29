@@ -1,8 +1,8 @@
 """Data update coordinator for the Glutz eAccess integration."""
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
+import logging
 from typing import Any
 
 from pyglutz_eaccess import GlutzAPI, GlutzAuthError, GlutzConnectionError
