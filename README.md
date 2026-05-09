@@ -82,3 +82,7 @@ pytest tests/components/glutz_eaccess --snapshot-update -q
 ```
 
 Commit the generated `.ambr` files — they are the baseline for snapshot assertions.
+
+## Documentation
+
+See the [full documentation](./documentation.markdown)
