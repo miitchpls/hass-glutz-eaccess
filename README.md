@@ -46,3 +46,7 @@ From a Windows terminal via WSL:
 ```bash
 wsl -- bash -c "source ~/venvs/glutz/bin/activate && cd /mnt/c/Users/<user>/Workspace/hass-glutz-eaccess && pytest tests/ -q"
 ```
+
+## Documentation
+
+See the [full documentation](./documentation.markdown)
