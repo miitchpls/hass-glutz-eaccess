@@ -58,6 +58,4 @@ Each Glutz access point is exposed as a **lock** entity. The following actions a
 | Unlock | Sends an open command; the door re-locks automatically after a few seconds. |
 | Open | Holds the door open indefinitely until a lock command is issued. |
 
-{% note %}
-Glutz eAccess doors do not provide real-time state feedback. The lock state in Home Assistant is simulated: after an unlock command the entity shows *unlocked* briefly before reverting to *locked*. The **Open** action keeps the entity in the *unlocked* state until explicitly locked.
-{% endnote %}
+> **Note:** Glutz eAccess doors do not provide real-time state feedback. The lock state in Home Assistant is simulated: after an unlock command the entity shows *unlocked* briefly before reverting to *locked*. The **Open** action keeps the entity in the *unlocked* state until explicitly locked.
