@@ -10,7 +10,7 @@ rules:
       Lock state (locked/unlocked) cannot be read from the API and is
       simulated via assumed state (async_assumed_state = True).
   brands:
-    status: todo
+    status: done
   common-modules:
     status: done
   config-flow:
@@ -23,11 +23,11 @@ rules:
     status: exempt
     comment: Integration does not provide any actions.
   docs-high-level-description:
-    status: todo
+    status: done
   docs-installation-instructions:
-    status: todo
+    status: done
   docs-removal:
-    status: todo
+    status: done
   entity-event-setup:
     status: exempt
     comment: Integration does not subscribe to events in async_added_to_hass.
@@ -50,9 +50,9 @@ rules:
   config-entry-unloading:
     status: done
   docs-configuration-parameters:
-    status: todo
+    status: done
   docs-installation-parameters:
-    status: todo
+    status: done
   entity-unavailable:
     status: done
   integration-owner:
@@ -78,17 +78,17 @@ rules:
     status: exempt
     comment: The Glutz eAccess system does not support any discovery protocol.
   docs-data-update:
-    status: todo
+    status: done
   docs-known-limitations:
-    status: todo
+    status: done
   docs-supported-devices:
-    status: todo
+    status: done
   docs-supported-functions:
-    status: todo
+    status: done
   docs-troubleshooting:
-    status: todo
+    status: done
   docs-use-cases:
-    status: todo
+    status: done
   dynamic-devices:
     status: done
   entity-category:
