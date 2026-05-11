@@ -40,7 +40,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com",
+          "host": "Vollständige URL deines Glutz eAccess-Servers.",
           "username": "Der Benutzername oder die E-Mail-Adresse deines Glutz eAccess-Kontos.",
           "password": "Das Passwort für dein Glutz eAccess-Konto."
         }
@@ -64,7 +64,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com",
+          "host": "Vollständige URL deines Glutz eAccess-Servers.",
           "username": "Der Benutzername oder die E-Mail-Adresse deines Glutz eAccess-Kontos.",
           "password": "Das Passwort für dein Glutz eAccess-Konto."
         }
@@ -78,7 +78,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com",
+          "host": "Vollständige URL deines Glutz eAccess-Servers.",
           "username": "Der Benutzername oder die E-Mail-Adresse deines Glutz eAccess-Kontos.",
           "password": "Das Passwort für dein Glutz eAccess-Konto."
         }
@@ -92,7 +92,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "host": "Vollständige URL deines Glutz eAccess-Servers, z. B. https://cloud.eaccess.glutz.com",
+          "host": "Vollständige URL deines Glutz eAccess-Servers.",
           "username": "Der Benutzername oder die E-Mail-Adresse deines Glutz eAccess-Kontos.",
           "password": "Das Passwort für dein Glutz eAccess-Konto."
         }

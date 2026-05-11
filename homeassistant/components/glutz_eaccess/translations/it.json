@@ -40,7 +40,7 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "host": "URL completo del server Glutz eAccess.",
           "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
           "password": "La password del tuo account Glutz eAccess."
         }
@@ -64,7 +64,7 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "host": "URL completo del server Glutz eAccess.",
           "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
           "password": "La password del tuo account Glutz eAccess."
         }
@@ -78,7 +78,7 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "host": "URL completo del server Glutz eAccess.",
           "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
           "password": "La password del tuo account Glutz eAccess."
         }
@@ -92,7 +92,7 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "host": "URL completo del server Glutz eAccess.",
           "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
           "password": "La password del tuo account Glutz eAccess."
         }
