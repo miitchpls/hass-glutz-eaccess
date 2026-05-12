@@ -40,7 +40,9 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com"
+          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
+          "password": "La password del tuo account Glutz eAccess."
         }
       },
       "invitation": {
@@ -60,6 +62,11 @@
           "host": "Nome server o URL",
           "username": "Nome utente o email",
           "password": "Password"
+        },
+        "data_description": {
+          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
+          "password": "La password del tuo account Glutz eAccess."
         }
       },
       "reauth_confirm": {
@@ -69,6 +76,11 @@
           "host": "Nome server o URL",
           "username": "Nome utente o email",
           "password": "Password"
+        },
+        "data_description": {
+          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
+          "password": "La password del tuo account Glutz eAccess."
         }
       },
       "reconfigure": {
@@ -80,7 +92,9 @@
           "password": "Password"
         },
         "data_description": {
-          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com"
+          "host": "URL completo del server Glutz eAccess, es. https://cloud.eaccess.glutz.com",
+          "username": "Il nome utente o l'indirizzo email del tuo account Glutz eAccess.",
+          "password": "La password del tuo account Glutz eAccess."
         }
       }
     },

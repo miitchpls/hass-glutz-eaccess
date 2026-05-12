@@ -1,12 +1,11 @@
 """Config flow for the Glutz eAccess integration."""
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
+import logging
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
-import voluptuous as vol
 from pyglutz_eaccess import (
     GlutzAPI,
     GlutzAuthError,
@@ -15,6 +14,7 @@ from pyglutz_eaccess import (
     resolve_instance_host,
     set_new_password,
 )
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
