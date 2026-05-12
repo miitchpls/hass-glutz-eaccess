@@ -1,6 +1,4 @@
 """Tests for the Glutz eAccess integration setup."""
-from __future__ import annotations
-
 from unittest.mock import AsyncMock
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
@@ -60,7 +58,7 @@ async def test_setup_auth_error(
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
 ) -> None:
-    """Test that an auth error during first refresh puts entry in AUTH_ERROR state."""
+    """Test that an auth error during first refresh puts entry in SETUP_ERROR state."""
     mock_glutz_client.get_access_points.side_effect = GlutzAuthError
 
     await setup_integration(hass, mock_config_entry)
