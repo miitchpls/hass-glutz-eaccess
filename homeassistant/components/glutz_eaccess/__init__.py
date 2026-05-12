@@ -1,5 +1,4 @@
 """The Glutz eAccess integration."""
-from __future__ import annotations
 
 from pyglutz_eaccess import GlutzAPI
 
