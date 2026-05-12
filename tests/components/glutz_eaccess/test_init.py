@@ -1,4 +1,5 @@
 """Tests for the Glutz eAccess integration setup."""
+
 from unittest.mock import AsyncMock
 
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
