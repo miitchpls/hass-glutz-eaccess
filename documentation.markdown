@@ -97,4 +97,4 @@ you want to control. Contact your Glutz system administrator to verify your
 permissions.
   
 ## Removing the integration                                                                                           
-  {% include integrations/remove_device_service.md %}
+{% include integrations/remove_device_service.md %}
