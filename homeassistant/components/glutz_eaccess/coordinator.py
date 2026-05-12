@@ -1,4 +1,5 @@
 """Data update coordinator for the Glutz eAccess integration."""
+
 from datetime import timedelta
 import logging
 from typing import Any

@@ -1,4 +1,5 @@
 """Tests for the Glutz eAccess lock platform."""
+
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 

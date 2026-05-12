@@ -1,4 +1,5 @@
 """Config flow for the Glutz eAccess integration."""
+
 from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING, Any

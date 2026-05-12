@@ -1,4 +1,5 @@
 """Diagnostics support for the Glutz eAccess integration."""
+
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
