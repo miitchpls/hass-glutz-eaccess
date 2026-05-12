@@ -1,27 +1,4 @@
 {
-  "exceptions": {
-    "auth_error": {
-      "message": "Autenticazione non riuscita per il punto di accesso {access_point_id}."
-    },
-    "open_access_point_error": {
-      "message": "Errore durante l'apertura del punto di accesso {access_point_id}."
-    },
-    "open_access_point_failed": {
-      "message": "Impossibile aprire il punto di accesso {access_point_id}."
-    },
-    "hold_open_access_point_error": {
-      "message": "Errore durante il mantenimento aperto del punto di accesso {access_point_id}."
-    },
-    "hold_open_access_point_failed": {
-      "message": "Impossibile mantenere aperto il punto di accesso {access_point_id}."
-    },
-    "close_access_point_error": {
-      "message": "Errore durante la chiusura del punto di accesso {access_point_id}."
-    },
-    "close_access_point_failed": {
-      "message": "Impossibile chiudere il punto di accesso {access_point_id}."
-    }
-  },
   "config": {
     "step": {
       "user": {
@@ -110,6 +87,29 @@
       "reconfigure_successful": "Configurazione aggiornata con successo.",
       "unknown": "Si è verificato un errore imprevisto.",
       "wrong_account": "Le credenziali appartengono a un sistema Glutz diverso."
+    }
+  },
+  "exceptions": {
+    "auth_error": {
+      "message": "Autenticazione non riuscita per il punto di accesso {access_point_id}."
+    },
+    "open_access_point_error": {
+      "message": "Errore durante l'apertura del punto di accesso {access_point_id}."
+    },
+    "open_access_point_failed": {
+      "message": "Impossibile aprire il punto di accesso {access_point_id}."
+    },
+    "hold_open_access_point_error": {
+      "message": "Errore durante il mantenimento aperto del punto di accesso {access_point_id}."
+    },
+    "hold_open_access_point_failed": {
+      "message": "Impossibile mantenere aperto il punto di accesso {access_point_id}."
+    },
+    "close_access_point_error": {
+      "message": "Errore durante la chiusura del punto di accesso {access_point_id}."
+    },
+    "close_access_point_failed": {
+      "message": "Impossibile chiudere il punto di accesso {access_point_id}."
     }
   }
 }
