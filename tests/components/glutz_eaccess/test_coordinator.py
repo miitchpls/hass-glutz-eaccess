@@ -1,6 +1,4 @@
 """Tests for the Glutz eAccess coordinator."""
-from __future__ import annotations
-
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
