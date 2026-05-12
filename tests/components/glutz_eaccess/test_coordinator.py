@@ -2,6 +2,8 @@
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
+from freezegun.api import FrozenDateTimeFactory
+
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 
 from homeassistant.components.glutz_eaccess.coordinator import SCAN_INTERVAL
@@ -30,7 +32,7 @@ async def test_coordinator_connection_error_on_update(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
-    freezer,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test that a connection error marks last_update_success as False."""
     await setup_integration(hass, mock_config_entry)
@@ -62,7 +64,7 @@ async def test_auth_error_during_scheduled_update_starts_reauth(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
-    freezer,
+    freezer: FrozenDateTimeFactory,
 ) -> None:
     """Test that auth error during a scheduled refresh marks update as failed."""
     await setup_integration(hass, mock_config_entry)
