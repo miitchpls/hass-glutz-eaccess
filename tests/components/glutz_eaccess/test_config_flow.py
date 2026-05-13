@@ -1,5 +1,4 @@
 """Tests for the Glutz eAccess config flow."""
-from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
@@ -297,6 +296,169 @@ async def test_invitation_confirm_creates_entry(
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
+async def test_invitation_confirm_without_invitation_aborts(
+    hass: HomeAssistant,
+) -> None:
+    """Test that invitation_confirm aborts when _invitation is not set."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "invitation_confirm"}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("side_effect", "expected_error"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_invitation_confirm_set_password_api_error(
+    hass: HomeAssistant,
+    side_effect: type[Exception],
+    expected_error: str,
+) -> None:
+    """Test that errors raised by set_new_password map to form errors."""
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.parse_invitation",
+            return_value={
+                "cloud_host": "cloud.example.com",
+                "system_path": "/sys/1",
+                "email": "u@example.com",
+                "token": "tok",
+            },
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": "https://invite.example.com"}
+        )
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+        side_effect=side_effect,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: "https://instance.example.com",
+                CONF_USERNAME: "u@example.com",
+                CONF_PASSWORD: "ValidP4ss!",
+            },
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": expected_error}
+
+
+@pytest.mark.parametrize(
+    ("side_effect", "expected_error"),
+    [
+        (GlutzAuthError, "invalid_auth"),
+        (GlutzConnectionError, "cannot_connect"),
+    ],
+)
+async def test_invitation_confirm_verify_api_error_after_password_set(
+    hass: HomeAssistant,
+    mock_glutz_client: AsyncMock,
+    side_effect: type[Exception],
+    expected_error: str,
+) -> None:
+    """Test that API errors after set_new_password map to form errors."""
+    mock_glutz_client.get_access_points.side_effect = side_effect
+
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.parse_invitation",
+            return_value={
+                "cloud_host": "cloud.example.com",
+                "system_path": "/sys/1",
+                "email": "u@example.com",
+                "token": "tok",
+            },
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": "https://invite.example.com"}
+        )
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: "https://instance.example.com",
+                CONF_USERNAME: "u@example.com",
+                CONF_PASSWORD: "ValidP4ss!",
+            },
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": expected_error}
+
+
+async def test_invitation_confirm_no_system_id_returns_error(
+    hass: HomeAssistant,
+    mock_glutz_client: AsyncMock,
+) -> None:
+    """Test cannot_connect when system_id is absent from both API and invitation."""
+    mock_glutz_client.get_system_info.return_value = {}
+
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.parse_invitation",
+            return_value={
+                "cloud_host": "cloud.example.com",
+                "system_path": "/sys/1",
+                "email": "u@example.com",
+                "token": "tok",
+            },
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": "https://invite.example.com"}
+        )
+
+    with patch(
+        "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: "https://instance.example.com",
+                CONF_USERNAME: "u@example.com",
+                CONF_PASSWORD: "ValidP4ss!",
+            },
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+
 # ---------------------------------------------------------------------------
 # Reauth step
 # ---------------------------------------------------------------------------
@@ -479,7 +641,10 @@ async def test_reconfigure_wrong_account_aborts(
     """Test that reconfigure aborts when system ID doesn't match the entry."""
     await setup_integration(hass, mock_config_entry)
 
-    mock_glutz_client.get_system_info.return_value = {"id": "DIFFERENT_ID", "name": "Other"}
+    mock_glutz_client.get_system_info.return_value = {
+        "id": "DIFFERENT_ID",
+        "name": "Other",
+    }
 
     result = await mock_config_entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
@@ -527,7 +692,10 @@ async def test_reauth_wrong_account_aborts(
     """Test that reauth aborts when system ID doesn't match the entry."""
     await setup_integration(hass, mock_config_entry)
 
-    mock_glutz_client.get_system_info.return_value = {"id": "DIFFERENT_ID", "name": "Other"}
+    mock_glutz_client.get_system_info.return_value = {
+        "id": "DIFFERENT_ID",
+        "name": "Other",
+    }
 
     result = await mock_config_entry.start_reauth_flow(hass)
     result = await hass.config_entries.flow.async_configure(

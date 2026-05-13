@@ -1,102 +1,11 @@
 {
-  "exceptions": {
-    "auth_error": {
-      "message": "Échec de l'authentification pour le point d'accès {access_point_id}."
-    },
-    "open_access_point_error": {
-      "message": "Erreur lors de l'ouverture du point d'accès {access_point_id}."
-    },
-    "open_access_point_failed": {
-      "message": "Impossible d'ouvrir le point d'accès {access_point_id}."
-    },
-    "hold_open_access_point_error": {
-      "message": "Erreur lors du maintien ouvert du point d'accès {access_point_id}."
-    },
-    "hold_open_access_point_failed": {
-      "message": "Impossible de maintenir ouvert le point d'accès {access_point_id}."
-    },
-    "close_access_point_error": {
-      "message": "Erreur lors du verrouillage du point d'accès {access_point_id}."
-    },
-    "close_access_point_failed": {
-      "message": "Impossible de verrouiller le point d'accès {access_point_id}."
-    }
-  },
   "config": {
-    "step": {
-      "user": {
-        "title": "Connexion à Glutz eAccess",
-        "menu_options": {
-          "credentials": "Se connecter avec identifiants",
-          "invitation": "Utiliser un lien d'invitation"
-        }
-      },
-      "credentials": {
-        "title": "Se connecter avec identifiants",
-        "description": "Entrez l'URL de votre instance Glutz eAccess et vos identifiants.",
-        "data": {
-          "host": "Nom du serveur ou URL",
-          "username": "Nom d'utilisateur ou email",
-          "password": "Mot de passe"
-        },
-        "data_description": {
-          "host": "URL complète de votre serveur Glutz eAccess, ex. https://cloud.eaccess.glutz.com",
-          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess.",
-          "password": "Le mot de passe de votre compte Glutz eAccess."
-        }
-      },
-      "invitation": {
-        "title": "Utiliser un lien d'invitation",
-        "description": "Collez le lien d'invitation que vous avez reçu par email.",
-        "data": {
-          "invite_url": "Lien d'invitation"
-        },
-        "data_description": {
-          "invite_url": "Le lien d'invitation qui vous a été envoyé par email de la part de Glutz."
-        }
-      },
-      "invitation_confirm": {
-        "title": "Définir votre mot de passe",
-        "description": "Vérifiez l'hôte et l'email, puis choisissez un mot de passe d'au moins 8 caractères incluant majuscules, minuscules, un chiffre et un caractère spécial.",
-        "data": {
-          "host": "Nom du serveur ou URL",
-          "username": "Nom d'utilisateur ou email",
-          "password": "Mot de passe"
-        },
-        "data_description": {
-          "host": "URL complète de votre serveur Glutz eAccess, ex. https://cloud.eaccess.glutz.com",
-          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess.",
-          "password": "Le mot de passe de votre compte Glutz eAccess."
-        }
-      },
-      "reauth_confirm": {
-        "title": "Ré-authentifier avec Glutz eAccess",
-        "description": "Vos identifiants enregistrés ne sont plus valides. Vérifiez le serveur et le nom d'utilisateur, puis entrez votre mot de passe actuel.",
-        "data": {
-          "host": "Nom du serveur ou URL",
-          "username": "Nom d'utilisateur ou email",
-          "password": "Mot de passe"
-        },
-        "data_description": {
-          "host": "URL complète de votre serveur Glutz eAccess, ex. https://cloud.eaccess.glutz.com",
-          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess.",
-          "password": "Le mot de passe de votre compte Glutz eAccess."
-        }
-      },
-      "reconfigure": {
-        "title": "Mettre à jour la connexion Glutz eAccess",
-        "description": "Mettez à jour l'adresse du serveur ou les identifiants pour cette instance Glutz eAccess.",
-        "data": {
-          "host": "Nom du serveur ou URL",
-          "username": "Nom d'utilisateur ou email",
-          "password": "Mot de passe"
-        },
-        "data_description": {
-          "host": "URL complète de votre serveur Glutz eAccess, ex. https://cloud.eaccess.glutz.com",
-          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess.",
-          "password": "Le mot de passe de votre compte Glutz eAccess."
-        }
-      }
+    "abort": {
+      "already_configured": "Cette instance Glutz est déjà configurée.",
+      "reauth_successful": "La ré-authentification a réussi.",
+      "reconfigure_successful": "Configuration mise à jour avec succès.",
+      "unknown": "Une erreur inattendue s'est produite.",
+      "wrong_account": "Les identifiants appartiennent à un système Glutz différent."
     },
     "error": {
       "cannot_connect": "Impossible de se connecter au serveur Glutz. Vérifiez l'URL de l'hôte et réessayez.",
@@ -104,12 +13,110 @@
       "invalid_invitation": "Le lien d'invitation n'est pas valide. Assurez-vous d'avoir collé l'URL complète de l'email.",
       "invalid_password": "Le mot de passe doit contenir au moins 8 caractères dont majuscules, minuscules, un chiffre et un caractère spécial."
     },
-    "abort": {
-      "already_configured": "Cette instance Glutz est déjà configurée.",
-      "reauth_successful": "La ré-authentification a réussi.",
-      "reconfigure_successful": "Configuration mise à jour avec succès.",
-      "unknown": "Une erreur inattendue s'est produite.",
-      "wrong_account": "Les identifiants appartiennent à un système Glutz différent."
+    "step": {
+      "credentials": {
+        "data": {
+          "host": "Nom du serveur ou URL",
+          "password": "Mot de passe",
+          "username": "Nom d'utilisateur ou email"
+        },
+        "data_description": {
+          "host": "URL complète de votre serveur Glutz eAccess.",
+          "password": "Le mot de passe de votre compte Glutz eAccess.",
+          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess."
+        },
+        "description": "Entrez l'URL de votre instance Glutz eAccess et vos identifiants.",
+        "title": "Se connecter avec identifiants"
+      },
+      "invitation": {
+        "data": {
+          "invite_url": "Lien d'invitation"
+        },
+        "data_description": {
+          "invite_url": "Le lien d'invitation qui vous a été envoyé par email de la part de Glutz."
+        },
+        "description": "Collez le lien d'invitation que vous avez reçu par email.",
+        "title": "Utiliser un lien d'invitation"
+      },
+      "invitation_confirm": {
+        "data": {
+          "host": "Nom du serveur ou URL",
+          "password": "Mot de passe",
+          "username": "Nom d'utilisateur ou email"
+        },
+        "data_description": {
+          "host": "URL complète de votre serveur Glutz eAccess.",
+          "password": "Le mot de passe de votre compte Glutz eAccess.",
+          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess."
+        },
+        "description": "Vérifiez l'hôte et l'email, puis choisissez un mot de passe d'au moins 8 caractères incluant majuscules, minuscules, un chiffre et un caractère spécial.",
+        "title": "Définir votre mot de passe"
+      },
+      "reauth_confirm": {
+        "data": {
+          "host": "Nom du serveur ou URL",
+          "password": "Mot de passe",
+          "username": "Nom d'utilisateur ou email"
+        },
+        "data_description": {
+          "host": "URL complète de votre serveur Glutz eAccess.",
+          "password": "Le mot de passe de votre compte Glutz eAccess.",
+          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess."
+        },
+        "description": "Vos identifiants enregistrés ne sont plus valides. Vérifiez le serveur et le nom d'utilisateur, puis entrez votre mot de passe actuel.",
+        "title": "Ré-authentifier avec Glutz eAccess"
+      },
+      "reconfigure": {
+        "data": {
+          "host": "Nom du serveur ou URL",
+          "password": "Mot de passe",
+          "username": "Nom d'utilisateur ou email"
+        },
+        "data_description": {
+          "host": "URL complète de votre serveur Glutz eAccess.",
+          "password": "Le mot de passe de votre compte Glutz eAccess.",
+          "username": "Le nom d'utilisateur ou l'adresse email de votre compte Glutz eAccess."
+        },
+        "description": "Mettez à jour l'adresse du serveur ou les identifiants pour cette instance Glutz eAccess.",
+        "title": "Mettre à jour la connexion Glutz eAccess"
+      },
+      "user": {
+        "menu_options": {
+          "credentials": "Se connecter avec identifiants",
+          "invitation": "Utiliser un lien d'invitation"
+        },
+        "title": "Connexion à Glutz eAccess"
+      }
+    }
+  },
+  "entity": {
+    "lock": {
+      "access_point": {
+        "name": "Verrou"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_error": {
+      "message": "Échec de l'authentification pour le point d'accès {access_point_id}."
+    },
+    "close_access_point_error": {
+      "message": "Erreur lors du verrouillage du point d'accès {access_point_id}."
+    },
+    "close_access_point_failed": {
+      "message": "Impossible de verrouiller le point d'accès {access_point_id}."
+    },
+    "hold_open_access_point_error": {
+      "message": "Erreur lors du maintien ouvert du point d'accès {access_point_id}."
+    },
+    "hold_open_access_point_failed": {
+      "message": "Impossible de maintenir ouvert le point d'accès {access_point_id}."
+    },
+    "open_access_point_error": {
+      "message": "Erreur lors de l'ouverture du point d'accès {access_point_id}."
+    },
+    "open_access_point_failed": {
+      "message": "Impossible d'ouvrir le point d'accès {access_point_id}."
     }
   }
 }

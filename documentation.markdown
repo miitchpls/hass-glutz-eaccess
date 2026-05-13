@@ -3,7 +3,7 @@ title: Glutz eAccess
 description: Instructions on how to integrate Glutz eAccess into Home Assistant.
 ha_category:
   - Lock
-ha_release: "2026.XX"
+ha_release: "2026.6"
 ha_iot_class: Cloud Polling
 ha_config_flow: true
 ha_codeowners:
@@ -12,7 +12,7 @@ ha_domain: glutz_eaccess
 ha_integration_type: hub
 ---
 
-The Glutz eAccess integration connects Home Assistant to the [Glutz eAccess](https://www.glutz.com/) access control system, allowing you to control all your Glutz access points directly from Home Assistant.
+The **Glutz eAccess** {% term integration %} connects Home Assistant to the [Glutz eAccess](https://www.glutz.com/) access control system, allowing you to control all your Glutz access points directly from Home Assistant.
 
 Glutz eAccess can be deployed as a cloud service (hosted by Glutz) or as a self-hosted server (eAccess Desktop or Server with the RPC interface enabled).
 
@@ -27,6 +27,8 @@ Smart Access is a Glutz eAccess permission level that allows users to control th
 ## Supported devices
 
 All Glutz eAccess-compatible hardware is supported.
+
+{% include integrations/config_flow.md %}
 
 ## Setup
 
@@ -52,10 +54,44 @@ The password must be at least 8 characters and include uppercase letters, lowerc
 
 Each Glutz access point is exposed as a **lock** entity. The following actions are supported:
 
-| Action | Description |
-|--------|-------------|
-| Lock | Sends a close command to the access point. |
-| Unlock | Sends an open command; the door re-locks automatically after a few seconds. |
-| Open | Holds the door open indefinitely until a lock command is issued. |
+- **Lock**: Sends a close command to the access point.
+- **Unlock**: Sends an open command; the door re-locks automatically after a few seconds.
+- **Open**: Holds the door open indefinitely until a lock command is issued.
 
-> **Note:** Glutz eAccess doors do not provide real-time state feedback. The lock state in Home Assistant is simulated: after an unlock command the entity shows *unlocked* briefly before reverting to *locked*. The **Open** action keeps the entity in the *unlocked* state until explicitly locked.
+{% note %}
+Glutz eAccess doors do not provide real-time state feedback. The lock state in Home Assistant is simulated: after an unlock command the entity shows *unlocked* briefly before reverting to *locked*. The **Open** action keeps the entity in the *unlocked* state until explicitly locked.
+{% endnote %}
+
+## Data updates
+
+The integration polls the Glutz eAccess server every 5 minutes to refresh
+the list of access points. The lock state cannot be retrieved from the API
+and is simulated locally.
+
+## Use cases
+
+- Automate door access based on time schedules (e.g., unlock the office
+  entrance every weekday morning).
+- Trigger automations when a lock or unlock action is sent from Home Assistant (for example, turn on lights when you unlock the front door via an automation or the dashboard).
+- Control and monitor all your Glutz access points from a single dashboard.
+
+## Troubleshooting
+
+### Cannot connect to the server
+
+Verify that the host URL is correct and reachable from your Home Assistant
+instance. Make sure to include the protocol (for example, `https://`).
+
+### Invalid credentials
+
+Ensure your username and password are correct. If you recently changed your
+password, use the re-authentication flow to update your stored credentials.
+
+### Access points are not appearing
+
+Your account must have at least **Smart Access** rights on the access points
+you want to control. Contact your Glutz system administrator to verify your
+permissions.
+
+## Removing the integration
+{% include integrations/remove_device_service.md %}

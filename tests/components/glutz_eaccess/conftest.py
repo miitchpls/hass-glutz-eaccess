@@ -1,5 +1,4 @@
 """Fixtures for Glutz eAccess integration tests."""
-from __future__ import annotations
 
 from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
@@ -14,17 +13,6 @@ from tests.common import (
     load_json_array_fixture,
     load_json_object_fixture,
 )
-
-
-@pytest.fixture
-def ignore_missing_translations(request: pytest.FixtureRequest) -> list[str]:
-    """Skip reauth translation keys (Lokalise-only) for auth_error tests."""
-    if "auth_error" not in request.node.name:
-        return []
-    return [
-        "component.homeassistant.issues.config_entry_reauth.title",
-        "component.homeassistant.issues.config_entry_reauth.description",
-    ]
 
 
 @pytest.fixture
