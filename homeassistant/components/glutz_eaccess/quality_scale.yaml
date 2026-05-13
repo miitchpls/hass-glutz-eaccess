@@ -99,7 +99,7 @@ rules:
   # Gold
   devices:
     status: done
-    comment: Each Glutz server is represented as a device grouping its access points.
+    comment: Each access point is represented as its own device.
   diagnostics:
     status: done
     comment: Diagnostics endpoint implemented, redacting sensitive fields.
@@ -135,7 +135,8 @@ rules:
     comment: >-
       A coordinator listener registered in async_setup_entry adds new lock
       entities whenever new access points appear in the coordinator data.
-      Removed access points are marked unavailable via the available property.
+      Removed access points are deleted from the entity registry via
+      er.async_remove(), which also removes them from the state machine.
   entity-category:
     status: exempt
     comment: All entities are primary lock entities.
@@ -147,7 +148,9 @@ rules:
     comment: All entities represent physical doors and should be enabled by default.
   entity-translations:
     status: done
-    comment: Entity names use translation keys.
+    comment: >-
+      Lock entities use translation_key "access_point" with a name entry in
+      strings.json, resolving to the standard lock component name per locale.
   exception-translations:
     status: done
     comment: All raised exceptions use translated strings.

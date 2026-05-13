@@ -4,7 +4,6 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
-
 from pyglutz_eaccess import GlutzAuthError, GlutzConnectionError
 import pytest
 from syrupy.assertion import SnapshotAssertion
@@ -19,7 +18,7 @@ from homeassistant.components.lock import (
     SERVICE_UNLOCK,
     LockState,
 )
-from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE, Platform
+from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -122,6 +121,7 @@ async def test_unlock_auto_relocks_after_duration(
     assert hass.states.get(ENTITY_AP1).state == LockState.UNLOCKED
 
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
+    async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_AP1).state == LockState.LOCKED
@@ -153,6 +153,7 @@ async def test_open_sets_state_unlocked_and_cancels_relock(
     )
 
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
+    async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     # Relock task was cancelled; door stays unlocked
@@ -301,13 +302,13 @@ async def test_service_api_returns_false_raises(
         )
 
 
-async def test_entity_unavailable_when_access_point_removed(
+async def test_entity_removed_when_access_point_removed(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Test entity becomes unavailable when its AP is removed from coordinator data."""
+    """Test entity is removed when its AP is removed from coordinator data."""
     await setup_integration(hass, mock_config_entry)
 
     assert hass.states.get(ENTITY_AP1).state == LockState.LOCKED
@@ -321,7 +322,7 @@ async def test_entity_unavailable_when_access_point_removed(
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    assert hass.states.get(ENTITY_AP1).state == STATE_UNAVAILABLE
+    assert hass.states.get(ENTITY_AP1) is None
 
 
 async def test_unlock_twice_cancels_first_relock(
@@ -353,6 +354,7 @@ async def test_unlock_twice_cancels_first_relock(
 
     # After the relock duration the door should lock (new relock task is active)
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
+    async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_AP1).state == LockState.LOCKED
