@@ -1,23 +1,23 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Diese Glutz-Instanz ist bereits konfiguriert.",
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "reauth_successful": "Die erneute Anmeldung war erfolgreich.",
       "reconfigure_successful": "Konfiguration erfolgreich aktualisiert.",
-      "unknown": "Ein unerwarteter Fehler ist aufgetreten.",
+      "unknown": "[%key:common::config_flow::error::unknown%]",
       "wrong_account": "Die Zugangsdaten gehören zu einem anderen Glutz-System."
     },
     "error": {
-      "cannot_connect": "Verbindung zum Glutz-Server fehlgeschlagen. Überprüfe die Host-URL und versuche es erneut.",
-      "invalid_auth": "Ungültige Zugangsdaten. Überprüfe Benutzername und Passwort.",
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
       "invalid_invitation": "Der Einladungslink ist ungültig. Stelle sicher, dass du die vollständige URL aus der E-Mail eingefügt hast.",
       "invalid_password": "Das Passwort muss mindestens 8 Zeichen lang sein und Groß- und Kleinbuchstaben, eine Ziffer und ein Sonderzeichen enthalten."
     },
     "step": {
       "credentials": {
         "data": {
-          "host": "Servername oder URL",
-          "password": "Passwort",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Benutzername oder E-Mail"
         },
         "data_description": {
@@ -40,8 +40,8 @@
       },
       "invitation_confirm": {
         "data": {
-          "host": "Servername oder URL",
-          "password": "Passwort",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Benutzername oder E-Mail"
         },
         "data_description": {
@@ -54,8 +54,8 @@
       },
       "reauth_confirm": {
         "data": {
-          "host": "Servername oder URL",
-          "password": "Passwort",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Benutzername oder E-Mail"
         },
         "data_description": {
@@ -68,8 +68,8 @@
       },
       "reconfigure": {
         "data": {
-          "host": "Servername oder URL",
-          "password": "Passwort",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Benutzername oder E-Mail"
         },
         "data_description": {
@@ -105,6 +105,12 @@
     },
     "close_access_point_failed": {
       "message": "Zugangspunkt {access_point_id} konnte nicht gesperrt werden."
+    },
+    "coordinator_auth_error": {
+      "message": "Ungültige Zugangsdaten."
+    },
+    "coordinator_update_failed": {
+      "message": "Fehler bei der Kommunikation mit dem Glutz-Server: {error}"
     },
     "hold_open_access_point_error": {
       "message": "Fehler beim dauerhaften Öffnen des Zugangspunkts {access_point_id}."

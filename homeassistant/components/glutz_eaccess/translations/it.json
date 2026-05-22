@@ -1,23 +1,23 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Questa istanza Glutz è già configurata.",
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "reauth_successful": "Ri-autenticazione riuscita.",
       "reconfigure_successful": "Configurazione aggiornata con successo.",
-      "unknown": "Si è verificato un errore imprevisto.",
+      "unknown": "[%key:common::config_flow::error::unknown%]",
       "wrong_account": "Le credenziali appartengono a un sistema Glutz diverso."
     },
     "error": {
-      "cannot_connect": "Impossibile connettersi al server Glutz. Verifica l'URL host e riprova.",
-      "invalid_auth": "Credenziali non valide. Verifica nome utente e password.",
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
       "invalid_invitation": "Il link di invito non è valido. Assicurati di aver incollato l'URL completo dall'email.",
       "invalid_password": "La password deve avere almeno 8 caratteri e includere maiuscole, minuscole, un numero e un carattere speciale."
     },
     "step": {
       "credentials": {
         "data": {
-          "host": "Nome server o URL",
-          "password": "Password",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Nome utente o email"
         },
         "data_description": {
@@ -40,8 +40,8 @@
       },
       "invitation_confirm": {
         "data": {
-          "host": "Nome server o URL",
-          "password": "Password",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Nome utente o email"
         },
         "data_description": {
@@ -54,8 +54,8 @@
       },
       "reauth_confirm": {
         "data": {
-          "host": "Nome server o URL",
-          "password": "Password",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Nome utente o email"
         },
         "data_description": {
@@ -68,8 +68,8 @@
       },
       "reconfigure": {
         "data": {
-          "host": "Nome server o URL",
-          "password": "Password",
+          "host": "[%key:common::config_flow::data::host%]",
+          "password": "[%key:common::config_flow::data::password%]",
           "username": "Nome utente o email"
         },
         "data_description": {
@@ -105,6 +105,12 @@
     },
     "close_access_point_failed": {
       "message": "Impossibile chiudere il punto di accesso {access_point_id}."
+    },
+    "coordinator_auth_error": {
+      "message": "Credenziali non valide."
+    },
+    "coordinator_update_failed": {
+      "message": "Errore di comunicazione con il server Glutz: {error}"
     },
     "hold_open_access_point_error": {
       "message": "Errore durante il mantenimento aperto del punto di accesso {access_point_id}."

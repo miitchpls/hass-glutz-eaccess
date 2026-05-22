@@ -1,0 +1,112 @@
+name: Tests
+
+on:
+  pull_request:
+
+env:
+  HA_CORE_REF: "2026.2.3"
+  HA_CORE_DIR: "ha_core"
+  INTEGRATION: "glutz_eaccess"
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  tests:
+    name: Run test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout integration
+        uses: actions/checkout@v4
+        with:
+          path: integration
+
+      - name: Cache HA core checkout
+        id: cache-ha-core
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HA_CORE_DIR }}
+          key: ha-core-${{ env.HA_CORE_REF }}-v1
+
+      - name: Clone HA core
+        if: steps.cache-ha-core.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "${HA_CORE_REF}" \
+            https://github.com/home-assistant/core.git "${HA_CORE_DIR}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            ${{ env.HA_CORE_DIR }}/requirements.txt
+            ${{ env.HA_CORE_DIR }}/requirements_test.txt
+            ${{ env.HA_CORE_DIR }}/homeassistant/package_constraints.txt
+            ${{ env.HA_CORE_DIR }}/pyproject.toml
+            integration/homeassistant/components/${{ env.INTEGRATION }}/manifest.json
+
+      - name: Create venv
+        run: uv venv --python ${{ env.PYTHON_VERSION }} "${HA_CORE_DIR}/.venv"
+
+      - name: Install HA core (editable) + test requirements
+        working-directory: ${{ env.HA_CORE_DIR }}
+        env:
+          # HA core ships package_constraints.txt with exact transitive pins
+          # (aiodns/pycares/etc.) that must be honoured to avoid ABI mismatches.
+          UV_CONSTRAINT: homeassistant/package_constraints.txt
+        run: |
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          # mypy-dev is a pre-release pin used only for HA's mypy CI;
+          # it's frequently unavailable on PyPI and not needed to run tests.
+          grep -v '^mypy-dev' requirements_test.txt > requirements_test_filtered.txt
+          uv pip install -r requirements_test_filtered.txt
+          uv pip install -e . --no-deps
+
+      - name: Install integration runtime dependency
+        working-directory: ${{ env.HA_CORE_DIR }}
+        env:
+          UV_CONSTRAINT: homeassistant/package_constraints.txt
+        run: |
+          source .venv/bin/activate
+          uv pip install "pyglutz-eaccess==0.2.2"
+
+      - name: Copy integration source into HA core tree
+        run: |
+          # translations/ is gitignored in HA core (regenerated from strings.json
+          # via Lokalise); excluding it avoids divergence with HA core's tooling.
+          rsync -a --delete \
+            --exclude '__pycache__' \
+            --exclude 'brand' \
+            --exclude 'glutz_eaccess' \
+            --exclude 'translations' \
+            integration/homeassistant/components/${INTEGRATION}/ \
+            ${HA_CORE_DIR}/homeassistant/components/${INTEGRATION}/
+
+      - name: Copy integration tests into HA core tree
+        run: |
+          mkdir -p ${HA_CORE_DIR}/tests/components/${INTEGRATION}
+          rsync -a --delete \
+            --exclude '__pycache__' \
+            integration/tests/components/${INTEGRATION}/ \
+            ${HA_CORE_DIR}/tests/components/${INTEGRATION}/
+
+      - name: Compile English translations from strings.json
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          python -m script.translations develop --all
+
+      - name: Run tests
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          pytest tests/components/${INTEGRATION}/ \
+            -q --no-header \
+            -p no:cacheprovider \
+            --durations=10

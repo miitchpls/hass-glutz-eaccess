@@ -22,6 +22,7 @@ from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from . import setup_integration
 
@@ -65,7 +66,7 @@ async def test_device_name_from_location(
     await setup_integration(hass, mock_config_entry)
 
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_device(identifiers={(DOMAIN, "ap-1")})
+    device = device_registry.async_get_device(identifiers={(DOMAIN, "SYS1_ap-1")})
     assert device is not None
     assert device.name == "Main Door"
 
@@ -79,7 +80,7 @@ async def test_device_name_fallback_no_location(
     await setup_integration(hass, mock_config_entry)
 
     device_registry = dr.async_get(hass)
-    device = device_registry.async_get_device(identifiers={(DOMAIN, "ap-2")})
+    device = device_registry.async_get_device(identifiers={(DOMAIN, "SYS1_ap-2")})
     assert device is not None
     assert device.name == "Door ap-2"
 
@@ -121,7 +122,7 @@ async def test_unlock_auto_relocks_after_duration(
     assert hass.states.get(ENTITY_AP1).state == LockState.UNLOCKED
 
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
-    async_fire_time_changed(hass)
+    async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_AP1).state == LockState.LOCKED
@@ -153,7 +154,7 @@ async def test_open_sets_state_unlocked_and_cancels_relock(
     )
 
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
-    async_fire_time_changed(hass)
+    async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
 
     # Relock task was cancelled; door stays unlocked
@@ -220,17 +221,17 @@ async def test_unlocked_state_preserved_across_coordinator_refresh(
         (SERVICE_OPEN, "hold_open_access_point"),
     ],
 )
-async def test_service_auth_error_starts_reauth(
+async def test_service_auth_error_raises(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
     service: str,
     api_method: str,
 ) -> None:
-    """Test that GlutzAuthError during service call triggers reauth and raises."""
+    """Test that GlutzAuthError during service call raises HomeAssistantError."""
     await setup_integration(hass, mock_config_entry)
 
-    getattr(mock_glutz_client, api_method).side_effect = GlutzAuthError
+    getattr(mock_glutz_client, api_method).side_effect = GlutzAuthError()
 
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
@@ -239,9 +240,6 @@ async def test_service_auth_error_starts_reauth(
             {ATTR_ENTITY_ID: ENTITY_AP1},
             blocking=True,
         )
-
-    flows = hass.config_entries.flow.async_progress()
-    assert any(f["context"]["source"] == "reauth" for f in flows)
 
 
 @pytest.mark.parametrize(
@@ -262,7 +260,7 @@ async def test_service_connection_error_raises(
     """Test that GlutzConnectionError during service call raises HomeAssistantError."""
     await setup_integration(hass, mock_config_entry)
 
-    getattr(mock_glutz_client, api_method).side_effect = GlutzConnectionError
+    getattr(mock_glutz_client, api_method).side_effect = GlutzConnectionError()
 
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
@@ -319,7 +317,7 @@ async def test_entity_removed_when_access_point_removed(
     ]
 
     freezer.tick(SCAN_INTERVAL + timedelta(seconds=1))
-    async_fire_time_changed(hass)
+    async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_AP1) is None
@@ -354,7 +352,7 @@ async def test_unlock_twice_cancels_first_relock(
 
     # After the relock duration the door should lock (new relock task is active)
     freezer.tick(timedelta(seconds=UNLOCK_DURATION + 1))
-    async_fire_time_changed(hass)
+    async_fire_time_changed(hass, dt_util.utcnow())
     await hass.async_block_till_done()
 
     assert hass.states.get(ENTITY_AP1).state == LockState.LOCKED
