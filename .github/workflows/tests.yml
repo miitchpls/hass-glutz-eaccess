@@ -96,6 +96,12 @@ jobs:
             integration/tests/components/${INTEGRATION}/ \
             ${HA_CORE_DIR}/tests/components/${INTEGRATION}/
 
+      - name: Compile English translations from strings.json
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          python -m script.translations develop --all
+
       - name: Run tests
         working-directory: ${{ env.HA_CORE_DIR }}
         run: |
