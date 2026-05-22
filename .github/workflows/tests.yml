@@ -4,7 +4,7 @@ on:
   pull_request:
 
 env:
-  HA_CORE_REF: "2025.5.3"
+  HA_CORE_REF: "2026.2.3"
   HA_CORE_DIR: "ha_core"
   INTEGRATION: "glutz_eaccess"
   PYTHON_VERSION: "3.13"
