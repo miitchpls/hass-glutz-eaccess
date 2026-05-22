@@ -18,10 +18,41 @@ homeassistant.components.__path__.append(
 # ---------------------------------------------------------------------------
 # tests.common  →  pytest_homeassistant_custom_component.common
 # ---------------------------------------------------------------------------
+_TESTS_ROOT = Path(__file__).parent / "tests"
+
+
+def _local_fixture_path(filename: str, integration: str | None = None) -> Path:
+    """Resolve fixture path against the local tests/components/{integration}/fixtures layout."""
+    if integration is None:
+        return _TESTS_ROOT / "fixtures" / filename
+    return _TESTS_ROOT / "components" / integration / "fixtures" / filename
+
+
+def _local_load_fixture(filename: str, integration: str | None = None) -> str:
+    return _local_fixture_path(filename, integration).read_text(encoding="utf8")
+
+
+def _local_load_json_array_fixture(filename, integration=None):
+    return _phcc_common.json_loads_array(_local_load_fixture(filename, integration))
+
+
+def _local_load_json_object_fixture(filename, integration=None):
+    return _phcc_common.json_loads_object(_local_load_fixture(filename, integration))
+
+
+def _local_load_json_value_fixture(filename, integration=None):
+    return _phcc_common.json_loads(_local_load_fixture(filename, integration))
+
+
 _tests_common = ModuleType("tests.common")
 _tests_common.__dict__.update(
     {k: v for k, v in vars(_phcc_common).items() if not k.startswith("__")}
 )
+_tests_common.get_fixture_path = _local_fixture_path
+_tests_common.load_fixture = _local_load_fixture
+_tests_common.load_json_array_fixture = _local_load_json_array_fixture
+_tests_common.load_json_object_fixture = _local_load_json_object_fixture
+_tests_common.load_json_value_fixture = _local_load_json_value_fixture
 sys.modules.setdefault("tests", ModuleType("tests"))
 sys.modules["tests.common"] = _tests_common
 
