@@ -1,7 +1,7 @@
 """Config flow for the Glutz eAccess integration."""
 
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urlparse
 
 from pyglutz_eaccess import (
@@ -14,14 +14,11 @@ from pyglutz_eaccess import (
 )
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN
-
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigFlowResult
 
 DEFAULT_TITLE = "Glutz eAccess"
 
