@@ -1,9 +1,8 @@
 # serializer version: 1
 # name: test_all_entities[lock.door_ap_2-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
+    'aliases': set({
+    }),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -53,9 +52,8 @@
 # ---
 # name: test_all_entities[lock.main_door-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
+    'aliases': set({
+    }),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
