@@ -3,21 +3,89 @@ name: Tests
 on:
   pull_request:
 
+env:
+  HA_CORE_REF: "2025.5.3"
+  HA_CORE_DIR: "ha_core"
+  INTEGRATION: "glutz_eaccess"
+  PYTHON_VERSION: "3.13"
+
 jobs:
   tests:
     name: Run test suite
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout integration
+        uses: actions/checkout@v4
+        with:
+          path: integration
+
+      - name: Cache HA core checkout
+        id: cache-ha-core
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.HA_CORE_DIR }}
+          key: ha-core-${{ env.HA_CORE_REF }}-v1
+
+      - name: Clone HA core
+        if: steps.cache-ha-core.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "${HA_CORE_REF}" \
+            https://github.com/home-assistant/core.git "${HA_CORE_DIR}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: pip install -r requirements_test.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            ${{ env.HA_CORE_DIR }}/requirements_test.txt
+            ${{ env.HA_CORE_DIR }}/pyproject.toml
+            integration/homeassistant/components/${{ env.INTEGRATION }}/manifest.json
+
+      - name: Create venv
+        run: uv venv --python ${{ env.PYTHON_VERSION }} "${HA_CORE_DIR}/.venv"
+
+      - name: Install HA core (editable) + test requirements
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          uv pip install -e .
+          uv pip install -r requirements_test.txt
+
+      - name: Install integration runtime dependency
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          uv pip install "pyglutz-eaccess==0.2.2"
+
+      - name: Copy integration source into HA core tree
+        run: |
+          rsync -a --delete \
+            --exclude '__pycache__' \
+            --exclude 'brand' \
+            --exclude 'glutz_eaccess' \
+            integration/homeassistant/components/${INTEGRATION}/ \
+            ${HA_CORE_DIR}/homeassistant/components/${INTEGRATION}/
+
+      - name: Copy integration tests into HA core tree
+        run: |
+          mkdir -p ${HA_CORE_DIR}/tests/components/${INTEGRATION}
+          rsync -a --delete \
+            --exclude '__pycache__' \
+            integration/tests/components/${INTEGRATION}/ \
+            ${HA_CORE_DIR}/tests/components/${INTEGRATION}/
 
       - name: Run tests
-        run: pytest tests/components/glutz_eaccess/ -q
+        working-directory: ${{ env.HA_CORE_DIR }}
+        run: |
+          source .venv/bin/activate
+          pytest tests/components/${INTEGRATION}/ \
+            -q --no-header \
+            -p no:cacheprovider \
+            --durations=10
