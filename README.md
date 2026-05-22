@@ -5,27 +5,18 @@ A [Home Assistant](https://www.home-assistant.io/) integration for the [Glutz eA
 ![Dashboard](./assets/5-dashboard.jpg)
 ![Lock entity](./assets/6-lock.jpg)
 
-> **Status:** this integration is being submitted for inclusion in Home Assistant core. Once merged, it will be available out of the box and this repository may be archived.  
-> Until then, a dedicated `custom-component` branch is available for manual installation.
+> **Status:** this integration is being submitted for inclusion in Home Assistant core. Once merged, it will be available out of the box and this repository may be archived.
 
-## Manual installation  (until available in HA core)
+## Manual installation (until available in HA core)
 
-This repository includes a dedicated branch for custom installation:
+Run the following command on your Home Assistant instance:
 
-1. Download or clone this repository.
+```sh
+wget -O - https://raw.githubusercontent.com/miitchpls/hass-glutz-eaccess/main/install | bash -
+```
 
-    ```bash
-    git clone --branch custom-component --single-branch https://github.com/miitchpls/hass-glutz-eaccess.git
-    ```
-
-2. Copy the `glutz_eaccess/` folder into the `custom_components/` directory of your Home Assistant configuration:
-    ```
-    <config>/custom_components/glutz_eaccess/
-    ```
-3. Restart Home Assistant. 
-4. Go to **Settings → Devices & Services → Add Integration**, search for **Glutz eAccess** and follow the setup wizard.
-
-![Search in the integrations store](./assets/1-store.jpg)
+### Configuration
+<a href="https://my.home-assistant.io/redirect/config_flow_start/?domain=glutz_eaccess" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg" alt="Open your Home Assistant instance and start setting up a new integration." /></a>
 
 ![Choose a login method](./assets/2-choose_login.jpg)
 
@@ -34,14 +25,6 @@ This repository includes a dedicated branch for custom installation:
 ![Devices created](./assets/4-devices_created.jpg)
 
 > **Note:** the `pyglutz-eaccess` Python dependency is installed automatically by Home Assistant on first start after installation.
-
-## Repository branches
-
-- **main**  
-  Development branch targeting inclusion in Home Assistant Core.
-
-- **custom-component**  
-  Standalone branch for manual installation as a custom integration.
 
 ### Running the tests
 
