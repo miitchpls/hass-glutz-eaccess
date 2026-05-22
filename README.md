@@ -28,54 +28,27 @@ wget -O - https://raw.githubusercontent.com/miitchpls/hass-glutz-eaccess/main/in
 
 ### Running the tests
 
-The test suite lives inside the [home-assistant/core](https://github.com/home-assistant/core) repository and must be run from there. The native Windows interpreter is not supported — use WSL on Windows.
-
-**First-time setup** — clone HA core and create its development venv (Python 3.14):
+Use the helper script — it handles everything automatically. On Windows, run it from WSL.
 
 ```bash
-git clone https://github.com/home-assistant/core.git
-cd core
-python3.14 -m venv ~/venvs/hass-core
-source ~/venvs/hass-core/bin/activate
-pip install -r requirements_test.txt
+bash script/test-local.sh
 ```
 
-Copy (or symlink) the integration and its tests into the HA core tree:
-
-```
-homeassistant/components/glutz_eaccess/   ← integration source
-tests/components/glutz_eaccess/           ← test suite
-```
-
-**Run the suite:**
+To see full setup output:
 
 ```bash
-source ~/venvs/hass-core/bin/activate
-cd /path/to/core
-pytest tests/components/glutz_eaccess -q
+bash script/test-local.sh -v
 ```
 
-From a Windows terminal via WSL:
+Extra pytest flags can be passed after `--`:
 
 ```bash
-wsl bash -c "source ~/venvs/hass-core/bin/activate && cd /mnt/c/Users/<user>/Workspace/core && pytest tests/components/glutz_eaccess -q"
+bash script/test-local.sh -- -x                        # stop on first failure
+bash script/test-local.sh -- --snapshot-update         # regenerate snapshots
+bash script/test-local.sh -- --cov=homeassistant.components.glutz_eaccess --cov-report=term-missing
 ```
 
-**Coverage report:**
 
-```bash
-pytest tests/components/glutz_eaccess \
-    --cov=homeassistant.components.glutz_eaccess \
-    --cov-report=term-missing -q
-```
-
-**Regenerate snapshots** (needed after changing entity attributes or diagnostics output):
-
-```bash
-pytest tests/components/glutz_eaccess --snapshot-update -q
-```
-
-Commit the generated `.ambr` files — they are the baseline for snapshot assertions.
 
 ## Documentation
 
