@@ -220,17 +220,17 @@ async def test_unlocked_state_preserved_across_coordinator_refresh(
         (SERVICE_OPEN, "hold_open_access_point"),
     ],
 )
-async def test_service_auth_error_starts_reauth(
+async def test_service_auth_error_raises(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_glutz_client: AsyncMock,
     service: str,
     api_method: str,
 ) -> None:
-    """Test that GlutzAuthError during service call triggers reauth and raises."""
+    """Test that GlutzAuthError during service call raises HomeAssistantError."""
     await setup_integration(hass, mock_config_entry)
 
-    getattr(mock_glutz_client, api_method).side_effect = GlutzAuthError
+    getattr(mock_glutz_client, api_method).side_effect = GlutzAuthError()
 
     with pytest.raises(HomeAssistantError):
         await hass.services.async_call(
@@ -239,9 +239,6 @@ async def test_service_auth_error_starts_reauth(
             {ATTR_ENTITY_ID: ENTITY_AP1},
             blocking=True,
         )
-
-    flows = hass.config_entries.flow.async_progress()
-    assert any(f["context"]["source"] == "reauth" for f in flows)
 
 
 @pytest.mark.parametrize(

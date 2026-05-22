@@ -116,7 +116,6 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         try:
             success = await api_method(self._access_point_id)
         except GlutzAuthError as err:
-            self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="auth_error",
