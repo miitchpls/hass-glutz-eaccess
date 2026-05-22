@@ -78,10 +78,13 @@ jobs:
 
       - name: Copy integration source into HA core tree
         run: |
+          # translations/ is gitignored in HA core (regenerated from strings.json
+          # via Lokalise); excluding it avoids divergence with HA core's tooling.
           rsync -a --delete \
             --exclude '__pycache__' \
             --exclude 'brand' \
             --exclude 'glutz_eaccess' \
+            --exclude 'translations' \
             integration/homeassistant/components/${INTEGRATION}/ \
             ${HA_CORE_DIR}/homeassistant/components/${INTEGRATION}/
 
