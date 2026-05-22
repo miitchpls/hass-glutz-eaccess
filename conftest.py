@@ -1,4 +1,5 @@
 """Root conftest: inject local integration into the installed HA package namespace."""
+
 from pathlib import Path
 import homeassistant.components
 
