@@ -14,7 +14,7 @@ from pyglutz_eaccess import (
 )
 import voluptuous as vol
 
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlow
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -70,7 +70,7 @@ def _reauth_confirm_schema(host: str, username: str) -> vol.Schema:
     )
 
 
-class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class GlutzConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Glutz eAccess."""
 
     VERSION = 1
@@ -175,6 +175,10 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "invalid_password"
 
             if not errors:
+                if system_id := self._invitation.get("system_id"):
+                    await self.async_set_unique_id(system_id)
+                    self._abort_if_unique_id_configured()
+
                 try:
                     await set_new_password(
                         async_get_clientsession(self.hass),
@@ -203,8 +207,9 @@ class GlutzConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         if not system_id:
                             errors["base"] = "cannot_connect"
                         else:
-                            await self.async_set_unique_id(system_id)
-                            self._abort_if_unique_id_configured()
+                            if not self._invitation.get("system_id"):
+                                await self.async_set_unique_id(system_id)
+                                self._abort_if_unique_id_configured()
                             return self.async_create_entry(
                                 title=info.get("name") or DEFAULT_TITLE,
                                 data={
