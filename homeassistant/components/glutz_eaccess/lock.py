@@ -146,6 +146,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         self.async_write_ha_state()
         if self._cancel_relock:
             self._cancel_relock()
+            self._cancel_relock = None
         self._cancel_relock = async_track_point_in_utc_time(
             self.hass,
             self._relock,
