@@ -48,9 +48,10 @@ async def async_setup_entry(
         removed_ids = known_ids - current_ids
         if removed_ids:
             ent_reg = er.async_get(hass)
+            system_id = entry.unique_id
             for ap_id in removed_ids:
                 if entity_id := ent_reg.async_get_entity_id(
-                    "lock", DOMAIN, f"glutz_{ap_id}"
+                    "lock", DOMAIN, f"glutz_{system_id}_{ap_id}"
                 ):
                     ent_reg.async_remove(entity_id)
             known_ids.difference_update(removed_ids)
@@ -81,11 +82,12 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
         """Initialize the lock entity for a single access point."""
         super().__init__(coordinator)
         self._access_point_id: str = access_point["accessPointId"]
+        system_id = coordinator.config_entry.unique_id
         location: list[str] = access_point.get("location", [])
         self._device_name = (
             location[-1] if location else f"Door {self._access_point_id}"
         )
-        self._attr_unique_id = f"glutz_{self._access_point_id}"
+        self._attr_unique_id = f"glutz_{system_id}_{self._access_point_id}"
         self._attr_is_locked = True
         self._cancel_relock: CALLBACK_TYPE | None = None
 
@@ -98,7 +100,7 @@ class GlutzLock(CoordinatorEntity[GlutzCoordinator], LockEntity):
     def device_info(self) -> DeviceInfo:
         """Return device info for the access point."""
         return DeviceInfo(
-            identifiers={(DOMAIN, self._access_point_id)},
+            identifiers={(DOMAIN, f"{system_id}_{self._access_point_id}")},
             name=self._device_name,
             manufacturer="Glutz",
         )
