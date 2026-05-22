@@ -106,6 +106,12 @@
     "close_access_point_failed": {
       "message": "Zugangspunkt {access_point_id} konnte nicht gesperrt werden."
     },
+    "coordinator_auth_error": {
+      "message": "Ungültige Zugangsdaten."
+    },
+    "coordinator_update_failed": {
+      "message": "Fehler bei der Kommunikation mit dem Glutz-Server: {error}"
+    },
     "hold_open_access_point_error": {
       "message": "Fehler beim dauerhaften Öffnen des Zugangspunkts {access_point_id}."
     },

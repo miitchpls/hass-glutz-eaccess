@@ -11,11 +11,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 SCAN_INTERVAL = timedelta(minutes=5)
 
-type GlutzConfigEntry = ConfigEntry["GlutzCoordinator"]
+type GlutzConfigEntry = ConfigEntry[GlutzCoordinator]
 
 
 class GlutzCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -44,7 +46,14 @@ class GlutzCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         try:
             access_points = await self.api.get_access_points()
         except GlutzAuthError as err:
-            raise ConfigEntryAuthFailed("Invalid credentials") from err
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN,
+                translation_key="coordinator_auth_error",
+            ) from err
         except GlutzConnectionError as err:
-            raise UpdateFailed(str(err)) from err
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="coordinator_update_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         return {ap["accessPointId"]: ap for ap in access_points}
