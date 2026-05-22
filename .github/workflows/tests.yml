@@ -44,6 +44,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: |
+            ${{ env.HA_CORE_DIR }}/requirements.txt
             ${{ env.HA_CORE_DIR }}/requirements_test.txt
             ${{ env.HA_CORE_DIR }}/pyproject.toml
             integration/homeassistant/components/${{ env.INTEGRATION }}/manifest.json
@@ -55,17 +56,23 @@ jobs:
         working-directory: ${{ env.HA_CORE_DIR }}
         run: |
           source .venv/bin/activate
-          uv pip install -e .
+          # Install HA's pinned runtime dependencies first so transitive deps
+          # (aiodns/pycares, etc.) match the versions HA core was tested with.
+          uv pip install -r requirements.txt
           # mypy-dev is a pre-release pin used only for HA's mypy CI;
           # it's frequently unavailable on PyPI and not needed to run tests.
           grep -v '^mypy-dev' requirements_test.txt > requirements_test_filtered.txt
           uv pip install -r requirements_test_filtered.txt
+          # HA core itself in editable mode, without touching pinned deps.
+          uv pip install -e . --no-deps
 
       - name: Install integration runtime dependency
         working-directory: ${{ env.HA_CORE_DIR }}
         run: |
           source .venv/bin/activate
-          uv pip install "pyglutz-eaccess==0.2.2"
+          # --no-deps: our integration's runtime deps (aiohttp etc.) are already
+          # provided by HA core at the pinned versions.
+          uv pip install --no-deps "pyglutz-eaccess==0.2.2"
 
       - name: Copy integration source into HA core tree
         run: |
