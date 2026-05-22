@@ -56,7 +56,10 @@ jobs:
         run: |
           source .venv/bin/activate
           uv pip install -e .
-          uv pip install -r requirements_test.txt
+          # mypy-dev is a pre-release pin used only for HA's mypy CI;
+          # it's frequently unavailable on PyPI and not needed to run tests.
+          grep -v '^mypy-dev' requirements_test.txt > requirements_test_filtered.txt
+          uv pip install -r requirements_test_filtered.txt
 
       - name: Install integration runtime dependency
         working-directory: ${{ env.HA_CORE_DIR }}
