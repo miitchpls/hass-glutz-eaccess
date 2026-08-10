@@ -68,7 +68,7 @@ _install_ha_core() {
     grep -v '^mypy-dev' requirements_test.txt > requirements_test_filtered.txt
     UV_CONSTRAINT=homeassistant/package_constraints.txt uv pip install -r requirements_test_filtered.txt
     UV_CONSTRAINT=homeassistant/package_constraints.txt uv pip install -e . --no-deps
-    UV_CONSTRAINT=homeassistant/package_constraints.txt uv pip install "pyglutz-eaccess==0.2.2"
+    UV_CONSTRAINT=homeassistant/package_constraints.txt uv pip install "pyglutz-eaccess==0.2.3"
 }
 
 if [[ -z "${HA_CORE_DIR:-}" ]]; then

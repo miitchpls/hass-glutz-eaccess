@@ -74,7 +74,7 @@ jobs:
           UV_CONSTRAINT: homeassistant/package_constraints.txt
         run: |
           source .venv/bin/activate
-          uv pip install "pyglutz-eaccess==0.2.2"
+          uv pip install "pyglutz-eaccess==0.2.3"
 
       - name: Copy integration source into HA core tree
         run: |
