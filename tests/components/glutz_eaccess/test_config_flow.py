@@ -505,6 +505,169 @@ async def test_invitation_confirm_verify_api_error_after_password_set(
     assert result["errors"] == {"base": expected_error}
 
 
+@pytest.mark.parametrize(
+    "invite_url",
+    [
+        # Web format from the invitation email button
+        "https://eaccess.ac.glutz.com/invite///cloud.eaccess.glutz.com/test-building"
+        "?systemid=1234.5678&email=user%40example.com"
+        "&token=AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF",
+        # Same URL pasted from an email client: whitespace + HTML-escaped &
+        "  https://eaccess.ac.glutz.com/invite///cloud.eaccess.glutz.com/test-building"
+        "?systemid=1234.5678&amp;email=user%40example.com"
+        "&amp;token=AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF\n",
+        # Mobile deep link shown on the invite web page (QR code target)
+        "eaccessmobile://cloud.eaccess.glutz.com/test-building"
+        "?systemid=1234.5678&email=user%40example.com"
+        "&token=AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF",
+    ],
+    ids=["web", "web-pasted-from-email", "mobile-deep-link"],
+)
+async def test_invitation_real_url_parses_and_creates_entry(
+    hass: HomeAssistant,
+    mock_glutz_client: AsyncMock,
+    invite_url: str,
+) -> None:
+    """Test the real parse_invitation with production-format invite URLs."""
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ) as mock_resolve,
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+        ) as mock_set_password,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": invite_url}
+        )
+
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "invitation_confirm"
+        assert mock_resolve.call_args[0][1:] == (
+            "cloud.eaccess.glutz.com",
+            "test-building",
+        )
+
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: "https://instance.example.com",
+                CONF_USERNAME: "user@example.com",
+                CONF_PASSWORD: "ValidP4ss!",
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_USERNAME] == "user@example.com"
+    assert (
+        mock_set_password.call_args[0][2] == "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF"
+    )
+
+
+async def test_invitation_confirm_retry_does_not_reuse_token(
+    hass: HomeAssistant,
+    mock_glutz_client: AsyncMock,
+) -> None:
+    """Test that a retry after a transient failure skips set_new_password."""
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.parse_invitation",
+            return_value={
+                "cloud_host": "cloud.example.com",
+                "system_path": "/sys/1",
+                "email": "u@example.com",
+                "token": "tok",
+            },
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+        ) as mock_set_password,
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": "https://invite.example.com"}
+        )
+
+        user_input = {
+            CONF_HOST: "https://instance.example.com",
+            CONF_USERNAME: "u@example.com",
+            CONF_PASSWORD: "ValidP4ss!",
+        }
+
+        # First attempt: password set succeeds, verification fails transiently
+        mock_glutz_client.get_access_points.side_effect = GlutzConnectionError()
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input=user_input
+        )
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": "cannot_connect"}
+        assert mock_set_password.call_count == 1
+
+        # Retry with the same input: token must not be sent again
+        mock_glutz_client.get_access_points.side_effect = None
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input=user_input
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert mock_set_password.call_count == 1
+
+
+async def test_invitation_confirm_bare_host_is_normalized(
+    hass: HomeAssistant,
+    mock_glutz_client: AsyncMock,
+) -> None:
+    """Test that a host entered without scheme is stored as an https URL."""
+    with (
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.parse_invitation",
+            return_value={
+                "cloud_host": "cloud.example.com",
+                "system_path": "/sys/1",
+                "email": "u@example.com",
+                "token": "tok",
+            },
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.resolve_instance_host",
+            return_value="instance.example.com",
+        ),
+        patch(
+            "homeassistant.components.glutz_eaccess.config_flow.set_new_password",
+        ),
+    ):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": "invitation"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={"invite_url": "https://invite.example.com"}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_HOST: "instance.example.com",
+                CONF_USERNAME: "u@example.com",
+                CONF_PASSWORD: "ValidP4ss!",
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_HOST] == "https://instance.example.com"
+
+
 async def test_invitation_confirm_no_system_id_returns_error(
     hass: HomeAssistant,
     mock_glutz_client: AsyncMock,
