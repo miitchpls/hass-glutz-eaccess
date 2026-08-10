@@ -51,7 +51,7 @@ jobs:
             integration/homeassistant/components/${{ env.INTEGRATION }}/manifest.json
 
       - name: Create venv
-        run: uv venv --python ${{ env.PYTHON_VERSION }} "${HA_CORE_DIR}/.venv"
+        run: uv venv --clear --python ${{ env.PYTHON_VERSION }} "${HA_CORE_DIR}/.venv"
 
       - name: Install HA core (editable) + test requirements
         working-directory: ${{ env.HA_CORE_DIR }}
@@ -74,7 +74,7 @@ jobs:
           UV_CONSTRAINT: homeassistant/package_constraints.txt
         run: |
           source .venv/bin/activate
-          uv pip install "pyglutz-eaccess==0.2.2"
+          uv pip install "pyglutz-eaccess==0.2.3"
 
       - name: Copy integration source into HA core tree
         run: |

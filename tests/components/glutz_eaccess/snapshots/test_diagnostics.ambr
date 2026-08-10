@@ -19,7 +19,7 @@
     'config_entry': dict({
       'host': 'https://example.com',
       'password': '**REDACTED**',
-      'username': 'user@example.com',
+      'username': '**REDACTED**',
     }),
   })
 # ---

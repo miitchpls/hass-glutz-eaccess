@@ -75,6 +75,7 @@ class GlutzConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._invitation: dict[str, str] | None = None
+        self._password_set: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -126,8 +127,11 @@ class GlutzConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # Tolerate URLs pasted from email clients: surrounding whitespace
+            # and HTML-escaped ampersands.
+            invite_url = user_input["invite_url"].strip().replace("&amp;", "&")
             try:
-                parsed = parse_invitation(user_input["invite_url"])
+                parsed = parse_invitation(invite_url)
             except ValueError:
                 errors["base"] = "invalid_invitation"
             else:
@@ -164,7 +168,8 @@ class GlutzConfigFlow(ConfigFlow, domain=DOMAIN):
         default_email = self._invitation["email"]
 
         if user_input is not None:
-            full_host = user_input[CONF_HOST]
+            raw_host = user_input[CONF_HOST]
+            full_host = raw_host if "://" in raw_host else f"https://{raw_host}"
             email = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
 
@@ -176,17 +181,23 @@ class GlutzConfigFlow(ConfigFlow, domain=DOMAIN):
                     await self.async_set_unique_id(system_id)
                     self._abort_if_unique_id_configured()
 
-                try:
-                    await set_new_password(
-                        async_get_clientsession(self.hass),
-                        urlparse(full_host).netloc or full_host,
-                        self._invitation["token"],
-                        password,
-                    )
-                except GlutzAuthError:
-                    errors["base"] = "invalid_auth"
-                except GlutzConnectionError:
-                    errors["base"] = "cannot_connect"
+                # The invitation token is single-use: skip the call when this
+                # password was already accepted in a previous attempt, so a
+                # transient failure later in the step stays retryable.
+                if self._password_set != password:
+                    try:
+                        await set_new_password(
+                            async_get_clientsession(self.hass),
+                            urlparse(full_host).netloc or full_host,
+                            self._invitation["token"],
+                            password,
+                        )
+                    except GlutzAuthError:
+                        errors["base"] = "invalid_auth"
+                    except GlutzConnectionError:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        self._password_set = password
 
                 if not errors:
                     api = GlutzAPI(
