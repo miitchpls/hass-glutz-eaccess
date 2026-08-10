@@ -564,9 +564,7 @@ async def test_invitation_real_url_parses_and_creates_entry(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_USERNAME] == "user@example.com"
-    assert (
-        mock_set_password.call_args[0][2] == "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF"
-    )
+    assert mock_set_password.call_args[0][2] == "AAAAA-BBBBB-CCCCC-DDDDD-EEEEE-FFFFF"
 
 
 async def test_invitation_confirm_retry_does_not_reuse_token(
